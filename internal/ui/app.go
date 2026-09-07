@@ -82,14 +82,16 @@ type App struct {
 	logStreamRequestSeq  uint64
 
 	// Logs
-	logLines     []string
-	logCh        chan string
-	logCtx       context.Context
-	logCancel    context.CancelFunc
-	logVP        viewport.Model
-	logService   string
-	logStreaming bool
-	logOrigin    AppState
+	logLines      []string
+	logCh         chan string
+	logCtx        context.Context
+	logCancel     context.CancelFunc
+	logVP         viewport.Model
+	logService    string
+	logStreaming  bool
+	logOrigin     AppState
+	logSessionSeq uint64
+	runLogStream  func(context.Context, string, string, chan<- string)
 
 	// Machine config
 	machConf      string // raw full YAML from talosctl
@@ -208,6 +210,8 @@ type App struct {
 }
 
 func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
+	client := talos.New(cfgPath, talosCtx)
+
 	ti := textinput.New()
 	ti.Placeholder = "ghcr.io/siderolabs/installer:v1.6.x"
 	ti.CharLimit = 256
@@ -226,7 +230,7 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 		cfg:          cfg,
 		cfgPath:      cfgPath,
 		talosCtx:     talosCtx,
-		client:       talos.New(cfgPath, talosCtx),
+		client:       client,
 		state:        StateNodeList,
 		upgradeInput: ti,
 		searchInput:  si,
@@ -238,6 +242,7 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 		upgradeVP:    viewport.New(80, 20),
 		healthVP:     viewport.New(80, 20),
 		helpVP:       viewport.New(80, 20),
+		runLogStream: client.StreamLogs,
 	}
 }
 
@@ -343,7 +348,10 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return app, nil
 
 	case logStreamsLoadedMsg:
-		if app.selNode == nil ||
+		pickerOwnsReply := app.state == StateLogStreams ||
+			(app.prev == StateLogStreams && (app.state == StateHelp || app.state == StateContextSwitcher))
+		if !pickerOwnsReply ||
+			app.selNode == nil ||
 			app.selNode.IP != msg.nodeIP ||
 			app.logStreamRequestNode != msg.nodeIP ||
 			app.logStreamRequestSeq != msg.sequence {
@@ -543,17 +551,20 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return app, nil
 
 	case logLineMsg:
-		if app.logStreaming {
+		if app.logStreaming && msg.sessionSeq == app.logSessionSeq {
 			wasAtLast := len(app.logLines) == 0 || app.logCur >= len(app.logLines)-1
-			app.logLines = append(app.logLines, string(msg))
+			app.logLines = append(app.logLines, msg.line)
 			if wasAtLast {
 				app.logCur = len(app.logLines) - 1
 			}
-			return app, waitForLine(app.logCh)
+			return app, waitForLine(app.logCh, msg.sessionSeq)
 		}
 		return app, nil
 
 	case logDoneMsg:
+		if msg.sessionSeq != app.logSessionSeq {
+			return app, nil
+		}
 		app.logStreaming = false
 		return app, nil
 

@@ -90,7 +90,19 @@ func (app App) handleLogStreamsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 	return app, nil
 }
 
+func waitForLine(ch <-chan string, sessionSeq uint64) tea.Cmd {
+	return func() tea.Msg {
+		line, ok := <-ch
+		if !ok {
+			return logDoneMsg{sessionSeq: sessionSeq}
+		}
+		return logLineMsg{line: line, sessionSeq: sessionSeq}
+	}
+}
+
 func (app App) startLogStream(target string) (App, tea.Cmd) {
+	app.stopLogs()
+	app.logSessionSeq++
 	app.logOrigin = app.state
 	app.logService = target
 	app.logLines = nil
@@ -100,18 +112,19 @@ func (app App) startLogStream(target string) (App, tea.Cmd) {
 	app.logCh = make(chan string, 500)
 	app.logCtx, app.logCancel = context.WithCancel(context.Background())
 
-	client := app.client
 	node := app.selNode.IP
 	logCh := app.logCh
 	logCtx := app.logCtx
+	logSessionSeq := app.logSessionSeq
+	runLogStream := app.runLogStream
 
 	return app, func() tea.Msg {
 		go func() {
 			defer close(logCh)
-			client.StreamLogs(logCtx, node, target, logCh)
+			runLogStream(logCtx, node, target, logCh)
 		}()
 
-		return waitForLine(logCh)()
+		return waitForLine(logCh, logSessionSeq)()
 	}
 }
 

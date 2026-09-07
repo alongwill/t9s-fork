@@ -176,34 +176,39 @@ func TestApp_LogStreamsLoaded_ignoresReplyOutsidePicker(t *testing.T) {
 	}
 }
 
-func TestApp_LogStreamsLoaded_appliesActiveReplyWhileOverlayIsOpen(t *testing.T) {
-	// Given
+func TestApp_LogStreamsLoaded_appliesActiveReplyWhilePickerOverlayIsOpen(t *testing.T) {
 	node := makeNodes(1)[0]
-	app := App{
-		state:                StateHelp,
-		selNode:              &node,
-		logStreamLoading:     true,
-		logStreamRequestNode: node.IP,
-		logStreamRequestSeq:  9,
-	}
+	for _, overlay := range []AppState{StateHelp, StateContextSwitcher} {
+		t.Run(viewTitle(overlay), func(t *testing.T) {
+			// Given
+			app := App{
+				state:                overlay,
+				prev:                 StateLogStreams,
+				selNode:              &node,
+				logStreamLoading:     true,
+				logStreamRequestNode: node.IP,
+				logStreamRequestSeq:  9,
+			}
 
-	// When
-	model, cmd := app.Update(logStreamsLoadedMsg{
-		streams:  []string{"kubelet"},
-		nodeIP:   node.IP,
-		sequence: 9,
-	})
-	got := model.(App)
+			// When
+			model, cmd := app.Update(logStreamsLoadedMsg{
+				streams:  []string{"kubelet"},
+				nodeIP:   node.IP,
+				sequence: 9,
+			})
+			got := model.(App)
 
-	// Then
-	if !reflect.DeepEqual(got.logStreams, []string{"kubelet"}) || got.logStreamLoading {
-		t.Fatalf("active overlay reply = streams %v, loading %v; want applied result", got.logStreams, got.logStreamLoading)
-	}
-	if got.state != StateHelp {
-		t.Fatalf("state = %v, want help overlay retained", got.state)
-	}
-	if cmd != nil {
-		t.Fatal("loaded message returned a command")
+			// Then
+			if !reflect.DeepEqual(got.logStreams, []string{"kubelet"}) || got.logStreamLoading {
+				t.Fatalf("active overlay reply = streams %v, loading %v; want applied result", got.logStreams, got.logStreamLoading)
+			}
+			if got.state != overlay {
+				t.Fatalf("state = %v, want overlay %v retained", got.state, overlay)
+			}
+			if cmd != nil {
+				t.Fatal("loaded message returned a command")
+			}
+		})
 	}
 }
 

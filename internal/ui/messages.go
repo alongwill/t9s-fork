@@ -79,8 +79,14 @@ type actionDoneMsg struct {
 	err    error
 }
 
-type logLineMsg string
-type logDoneMsg struct{}
+type logLineMsg struct {
+	line       string
+	sessionSeq uint64
+}
+
+type logDoneMsg struct {
+	sessionSeq uint64
+}
 
 type dmesgLineMsg string
 type dmesgDoneMsg struct{}
