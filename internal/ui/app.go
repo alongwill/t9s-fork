@@ -21,6 +21,7 @@ type AppState int
 const (
 	StateNodeList AppState = iota
 	StateServices
+	StateLogStreams
 	StateLogs
 	StateMachineConfig
 	StateExtensions
@@ -55,9 +56,9 @@ type App struct {
 	state AppState
 	prev  AppState
 
-	statusMsg  string
-	clientVer  string // talosctl binary version
-	serverVer  string // Talos server version (from first node)
+	statusMsg   string
+	clientVer   string // talosctl binary version
+	serverVer   string // Talos server version (from first node)
 	verMismatch string // non-empty when client/server versions diverge
 
 	// Node list
@@ -69,29 +70,37 @@ type App struct {
 	selNode *talos.Node
 
 	// Services
-	services    []talos.Service
-	svcCur      int
-	svcLoading  bool
+	services   []talos.Service
+	svcCur     int
+	svcLoading bool
+
+	// Log streams
+	logStreams           []string
+	logStreamCur         int
+	logStreamLoading     bool
+	logStreamRequestNode string
+	logStreamRequestSeq  uint64
 
 	// Logs
-	logLines    []string
-	logCh       chan string
-	logCtx      context.Context
-	logCancel   context.CancelFunc
-	logVP       viewport.Model
-	logService  string
+	logLines     []string
+	logCh        chan string
+	logCtx       context.Context
+	logCancel    context.CancelFunc
+	logVP        viewport.Model
+	logService   string
 	logStreaming bool
+	logOrigin    AppState
 
 	// Machine config
-	machConf     string // raw full YAML from talosctl
-	machSection  string // extracted "machine:" section shown in UI
-	machVP         viewport.Model
-	machLoading    bool
-	machEditFile   string // temp file path while editing
-	machEditMode   bool   // waiting for apply confirmation
-	machFindQuery  string
-	machFindLines  []int  // line indices that match machFindQuery
-	machFindIdx    int    // current position in machFindLines
+	machConf      string // raw full YAML from talosctl
+	machSection   string // extracted "machine:" section shown in UI
+	machVP        viewport.Model
+	machLoading   bool
+	machEditFile  string // temp file path while editing
+	machEditMode  bool   // waiting for apply confirmation
+	machFindQuery string
+	machFindLines []int // line indices that match machFindQuery
+	machFindIdx   int   // current position in machFindLines
 
 	// Extensions
 	extensions []talos.Extension
@@ -105,11 +114,11 @@ type App struct {
 	catalogVersion string
 
 	// Dmesg
-	dmesgLines    []string
-	dmesgCh       chan string
-	dmesgCtx      context.Context
-	dmesgCancel   context.CancelFunc
-	dmesgVP       viewport.Model
+	dmesgLines     []string
+	dmesgCh        chan string
+	dmesgCtx       context.Context
+	dmesgCancel    context.CancelFunc
+	dmesgVP        viewport.Model
 	dmesgStreaming bool
 
 	// Metrics
@@ -120,12 +129,12 @@ type App struct {
 	statsLoading bool
 
 	// Upgrade
-	upgradeInput   textinput.Model
-	upgradeLines   []string
-	upgradeCh      chan string
-	upgradeCtx     context.Context
-	upgradeCancel  context.CancelFunc
-	upgradeVP      viewport.Model
+	upgradeInput    textinput.Model
+	upgradeLines    []string
+	upgradeCh       chan string
+	upgradeCtx      context.Context
+	upgradeCancel   context.CancelFunc
+	upgradeVP       viewport.Model
 	upgradeForK8s   bool
 	upgradePreserve bool
 	upgradeConfirm  bool
@@ -158,11 +167,11 @@ type App struct {
 	addrLoading bool
 
 	// Health
-	healthLines    []string
-	healthCh       chan string
-	healthCtx      context.Context
-	healthCancel   context.CancelFunc
-	healthVP       viewport.Model
+	healthLines     []string
+	healthCh        chan string
+	healthCtx       context.Context
+	healthCancel    context.CancelFunc
+	healthVP        viewport.Model
 	healthStreaming bool
 
 	// Help
@@ -223,12 +232,12 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 		searchInput:  si,
 		findInput:    fi,
 		contexts:     cfg.ContextNames(),
-		logVP:     viewport.New(80, 20),
-		dmesgVP:   viewport.New(80, 20),
-		machVP:    viewport.New(80, 20),
-		upgradeVP: viewport.New(80, 20),
-		healthVP:  viewport.New(80, 20),
-		helpVP:    viewport.New(80, 20),
+		logVP:        viewport.New(80, 20),
+		dmesgVP:      viewport.New(80, 20),
+		machVP:       viewport.New(80, 20),
+		upgradeVP:    viewport.New(80, 20),
+		healthVP:     viewport.New(80, 20),
+		helpVP:       viewport.New(80, 20),
 	}
 }
 
@@ -330,6 +339,24 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			app.services = msg.services
 			app.svcCur = 0
 			app.statusMsg = fmt.Sprintf("%d services", len(msg.services))
+		}
+		return app, nil
+
+	case logStreamsLoadedMsg:
+		if app.selNode == nil ||
+			app.selNode.IP != msg.nodeIP ||
+			app.logStreamRequestNode != msg.nodeIP ||
+			app.logStreamRequestSeq != msg.sequence {
+			return app, nil
+		}
+		app.logStreamLoading = false
+		if msg.err != nil {
+			app.statusMsg = errStyle.Render("Error: " + msg.err.Error())
+		} else {
+			app.logStreams = msg.streams
+			app.logStreamCur = 0
+			app.viewScrollStart = 0
+			app.statusMsg = fmt.Sprintf("%d log streams", len(msg.streams))
 		}
 		return app, nil
 
@@ -707,6 +734,10 @@ func resourceLine(app App) string {
 		if app.selNode != nil {
 			return fmt.Sprintf("Services › %s (%d)", app.selNode.Hostname, len(app.services))
 		}
+	case StateLogStreams:
+		if app.selNode != nil {
+			return fmt.Sprintf("Log Streams › %s (%d)", app.selNode.Hostname, len(app.logStreams))
+		}
 	case StateLogs:
 		if app.selNode != nil {
 			return fmt.Sprintf("Logs › %s › %s", app.selNode.Hostname, app.logService)
@@ -767,6 +798,8 @@ func viewTitle(s AppState) string {
 		return "[ Nodes ]"
 	case StateServices:
 		return "[ Services ]"
+	case StateLogStreams:
+		return "[ Log Streams ]"
 	case StateLogs:
 		return "[ Logs ]"
 	case StateMachineConfig:
@@ -824,13 +857,14 @@ func (app App) renderFooter() string {
 	return sepLine + "\n  " + status
 }
 
-
 func (app App) renderMain(height int) string {
 	switch app.state {
 	case StateNodeList:
 		return app.renderNodeList(height)
 	case StateServices:
 		return app.renderServices(height)
+	case StateLogStreams:
+		return app.renderLogStreams(height)
 	case StateLogs:
 		return app.renderLogs(height)
 	case StateMachineConfig:
@@ -862,7 +896,6 @@ func (app App) renderMain(height int) string {
 	}
 	return ""
 }
-
 
 // --- Data loaders ---
 
@@ -1227,7 +1260,15 @@ func (app App) goBack() App {
 	app.searchInput.Reset()
 	switch app.state {
 	case StateLogs:
-		app.state = StateServices
+		switch app.logOrigin {
+		case StateServices, StateLogStreams:
+			app.state = app.logOrigin
+		default:
+			app.state = StateServices
+		}
+	case StateLogStreams:
+		app.state = StateNodeList
+		app.selNode = nil
 	case StateServices:
 		app.state = StateNodeList
 		app.selNode = nil

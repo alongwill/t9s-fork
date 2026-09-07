@@ -18,6 +18,13 @@ type servicesLoadedMsg struct {
 	err      error
 }
 
+type logStreamsLoadedMsg struct {
+	streams  []string
+	nodeIP   string
+	sequence uint64
+	err      error
+}
+
 type extensionsLoadedMsg struct {
 	extensions []talos.Extension
 	err        error

@@ -38,6 +38,18 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		app = app.goTo(StateServices)
 		return app, app.loadServices()
 
+	case "l":
+		n := app.selectedNode()
+		if n == nil {
+			return app, nil
+		}
+		app.selNode = n
+		app.logStreams = nil
+		app.logStreamCur = 0
+		app.statusMsg = "Loading log streams..."
+		app = app.goTo(StateLogStreams)
+		return app.startLogStreamsLoad()
+
 	case "e":
 		n := app.selectedNode()
 		if n == nil {
@@ -294,9 +306,9 @@ func (app App) renderNodeList(height int) string {
 
 		// Build plain fields first, then colorise — keeps alignment correct.
 		host := col(truncate(n.Hostname, colHost), colHost)
-		ip   := col(truncate(n.DisplayIP, colIP), colIP)
+		ip := col(truncate(n.DisplayIP, colIP), colIP)
 		role := col(truncate(n.Role, colRole), colRole)
-		ver  := col(truncate(n.Version, colVer), colVer)
+		ver := col(truncate(n.Version, colVer), colVer)
 
 		selected := i == app.nodeCur
 		cursor := "  "
@@ -305,12 +317,12 @@ func (app App) renderNodeList(height int) string {
 		}
 
 		// Apply semantic colors to plain-padded strings
-		roleColored   := colorRole(role)
-		verColored    := dimStyle.Render(ver)
+		roleColored := colorRole(role)
+		verColored := dimStyle.Render(ver)
 		statusColored := colorNodeStatus(n.Status)
 		if selected {
-			roleColored   = role
-			verColored    = ver
+			roleColored = role
+			verColored = ver
 			statusColored = n.Status
 		}
 
