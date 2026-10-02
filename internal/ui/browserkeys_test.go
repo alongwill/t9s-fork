@@ -416,8 +416,8 @@ func TestBrowserFuzzyFilterIsLiveAndArrowsMove(t *testing.T) {
 	}
 	p, _ := app.browser.top()
 	rows := app.browser.typeRows(testNet, p.filter)
-	if p.filter != "th1" || len(rows) != 10 {
-		t.Fatalf("live filter %q → %d rows, want 10 (Thing10-19)", p.filter, len(rows))
+	if p.filter != "th1" || len(rows) != 11 {
+		t.Fatalf("live filter %q → %d rows, want 11 (Thing10-19 plus Thing01)", p.filter, len(rows))
 	}
 	app = press(t, app, "down", "down")
 	if p, _ = app.browser.top(); p.cur != 2 || !app.browser.prompting {

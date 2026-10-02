@@ -19,7 +19,7 @@ func fuzzyScore(term, s string) (int, bool) {
 	if len(low) != len(orig) { // odd case-folding changed the length; fall back to raw runes
 		low = orig
 	}
-	score, ti, prev := 0, 0, -2
+	score, ti, prev, first := 0, 0, -2, -1
 	for i, r := range low {
 		if ti >= len(t) {
 			break
@@ -38,11 +38,17 @@ func fuzzyScore(term, s string) (int, bool) {
 		if prev >= 0 {
 			score -= min(i-prev-1, 5)
 		}
+		if first < 0 {
+			first = i
+		}
 		prev = i
 		ti++
 	}
 	if ti < len(t) {
 		return 0, false
+	}
+	if first == 0 {
+		score += 30 // anchored at the start
 	}
 	if strings.Contains(strings.ToLower(s), strings.ToLower(term)) {
 		score += 50
