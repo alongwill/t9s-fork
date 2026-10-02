@@ -113,3 +113,31 @@ type machineConfigAppliedMsg struct {
 	err  error
 	file string // temp file to clean up
 }
+
+// Resource browser. Every message carries the node it was requested for so
+// replies for a node the user has since left are dropped.
+type resourceDefsMsg struct {
+	node string
+	defs []talos.ResourceDef
+	err  error
+}
+
+type resourceCountMsg struct {
+	node, typ string
+	n         int
+	only      talos.ResourceMeta // set when n == 1
+	locked    bool
+	err       error
+}
+
+type resourceInstancesMsg struct {
+	node, typ string
+	items     []talos.ResourceMeta
+	err       error
+}
+
+type resourceYAMLMsg struct {
+	node, typ, id string
+	yaml          string
+	err           error
+}

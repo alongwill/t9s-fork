@@ -340,9 +340,12 @@ func (app App) browserEnter() (App, tea.Cmd) {
 			return app, nil
 		}
 		row := rows[p.cur]
+		types := b.typesIn(row.key)
 		app.browser = b.push(pane{kind: paneTypes, title: row.label, category: row.key})
+		cmd := app.loadCounts(types) // skips types already counted or in flight
+		app.browser = app.browser.markCountsLoading(types)
 		app = app.syncBrowserState()
-		return app, app.loadCounts(b.typesIn(row.key))
+		return app, cmd
 
 	case paneTypes:
 		rows := b.typeRows(p.category, p.filter)
@@ -430,8 +433,18 @@ func (app App) browserReload() (App, tea.Cmd) {
 			b = b.setSingle(d.Type, talos.ResourceMeta{}, false)
 		}
 		b.counts = counts
+		loading := make(map[string]bool, len(b.loading))
+		for k, v := range b.loading {
+			loading[k] = v
+		}
+		for _, d := range types {
+			delete(loading, d.Type)
+		}
+		b.loading = loading
 		app.browser = b
-		return app, app.loadCounts(types)
+		cmd := app.loadCounts(types) // skips types already counted or in flight
+		app.browser = app.browser.markCountsLoading(types)
+		return app, cmd
 
 	case paneInstances:
 		app.browser = b.withTop(func(p *pane) { p.loading, p.err = true, "" })

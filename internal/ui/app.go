@@ -301,6 +301,18 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return app.handleKey(msg)
 
+	case resourceDefsMsg:
+		return app.handleResourceDefs(msg), nil
+
+	case resourceCountMsg:
+		return app.handleResourceCount(msg), nil
+
+	case resourceInstancesMsg:
+		return app.handleResourceInstances(msg), nil
+
+	case resourceYAMLMsg:
+		return app.handleResourceYAML(msg), nil
+
 	case clientVersionMsg:
 		app.clientVer = msg.version
 		app.client.SetClientVersion(msg.version)
