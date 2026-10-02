@@ -201,6 +201,7 @@ func (app App) openPrompt(kind promptKind) (App, tea.Cmd) {
 	}
 	ti.CursorEnd()
 	app.browser.input = ti
+	app.browser.promptPrev = p.filter
 	app.browser.prompting = true
 	app.browser.promptKind = kind
 	return app, app.browser.input.Focus()
@@ -214,6 +215,10 @@ func (app App) handleBrowserPrompt(msg tea.KeyMsg) (App, tea.Cmd) {
 	case "esc":
 		app.browser.prompting = false
 		app.browser.input.Blur()
+		if app.browser.promptKind == promptFilter { // cancel: undo the live filter
+			prev := app.browser.promptPrev
+			app.browser = app.browser.withTop(func(p *pane) { p.filter, p.cur, p.scroll = prev, 0, 0 })
+		}
 		return app, nil
 	case "enter":
 		val := app.browser.input.Value()
@@ -221,13 +226,24 @@ func (app App) handleBrowserPrompt(msg tea.KeyMsg) (App, tea.Cmd) {
 		app.browser.prompting = false
 		app.browser.input.Blur()
 		if kind == promptFilter {
-			app.browser = app.browser.withTop(func(p *pane) { p.filter, p.cur, p.scroll = val, 0, 0 })
-			return app, nil
+			return app, nil // already applied live
 		}
 		return app.applyFind(val), nil
+	case "up", "ctrl+p":
+		if app.browser.promptKind == promptFilter {
+			return app.browserMove(-1), nil
+		}
+	case "down", "ctrl+n":
+		if app.browser.promptKind == promptFilter {
+			return app.browserMove(1), nil
+		}
 	}
 	var cmd tea.Cmd
 	app.browser.input, cmd = app.browser.input.Update(msg)
+	if app.browser.promptKind == promptFilter { // fuzzy filter follows every keystroke
+		val := app.browser.input.Value()
+		app.browser = app.browser.withTop(func(p *pane) { p.filter, p.cur, p.scroll = val, 0, 0 })
+	}
 	return app, cmd
 }
 

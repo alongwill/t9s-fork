@@ -385,3 +385,51 @@ func TestBrowserHintsAndHelpComeFromKeyTable(t *testing.T) {
 		}
 	}
 }
+
+func TestFuzzyScoreAndRanking(t *testing.T) {
+	if _, ok := fuzzyScore("adst", "AddressStatus"); !ok {
+		t.Error("adst should match AddressStatus")
+	}
+	if _, ok := fuzzyScore("xyz", "AddressStatus"); ok {
+		t.Error("xyz should not match")
+	}
+	if _, ok := fuzzyScore("ts", "stat"); ok {
+		t.Error("order matters: ts must not match stat")
+	}
+	items := []string{"LinkAddressThing", "AddressStatus", "AddressSpec", "Disk"}
+	got := rankFilter(items, "addr", func(s string) []string { return []string{s} })
+	if len(got) != 3 || got[0] == "LinkAddressThing" || got[2] != "LinkAddressThing" {
+		t.Errorf("prefix matches should outrank mid-word: %v", got)
+	}
+	got = rankFilter(items, "!addr", func(s string) []string { return []string{s} })
+	if len(got) != 1 || got[0] != "Disk" {
+		t.Errorf("inverse: %v", got)
+	}
+}
+
+func TestBrowserFuzzyFilterIsLiveAndArrowsMove(t *testing.T) {
+	app := browserApp(120, 40, 2, 20)
+	app = press(t, app, "/", "t", "h", "1")
+	// live: rows are already narrowed before enter, prompt still open
+	if !app.browser.prompting {
+		t.Fatal("prompt closed early")
+	}
+	p, _ := app.browser.top()
+	rows := app.browser.typeRows(testNet, p.filter)
+	if p.filter != "th1" || len(rows) != 10 {
+		t.Fatalf("live filter %q → %d rows, want 10 (Thing10-19)", p.filter, len(rows))
+	}
+	app = press(t, app, "down", "down")
+	if p, _ = app.browser.top(); p.cur != 2 || !app.browser.prompting {
+		t.Errorf("arrows while typing: cur=%d prompting=%v", p.cur, app.browser.prompting)
+	}
+	app = press(t, app, "enter")
+	if p, _ = app.browser.top(); app.browser.prompting || p.filter != "th1" || p.cur != 2 {
+		t.Errorf("enter should keep filter and cursor: %+v", p)
+	}
+	// esc inside a new prompt restores the applied filter
+	app = press(t, app, "/", "x", "esc")
+	if p, _ = app.browser.top(); p.filter != "th1" {
+		t.Errorf("esc should restore previous filter, got %q", p.filter)
+	}
+}

@@ -189,8 +189,8 @@ Opened with <kbd>a</kbd> on a node. Panes open to the right on <kbd>Enter</kbd> 
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>B</kbd>, <kbd>PgDn</kbd> / <kbd>PgUp</kbd> | all | Page down / up |
 | <kbd>Enter</kbd> | lists | Open |
 | <kbd>y</kbd> | instances | Open YAML (same as <kbd>Enter</kbd>) |
-| <kbd>/</kbd> | lists | Filter: case-insensitive regex (literal if invalid), `!term` inverts. <kbd>Enter</kbd> applies, <kbd>Esc</kbd> cancels |
-| <kbd>/</kbd>, <kbd>n</kbd> / <kbd>N</kbd> | YAML | Search, next / previous match |
+| <kbd>/</kbd> | lists | Fuzzy filter, live as you type: `adst` finds `AddressStatus`, best matches first, `!term` inverts. <kbd>↑</kbd><kbd>↓</kbd> move while typing, <kbd>Enter</kbd> keeps it, <kbd>Esc</kbd> cancels |
+| <kbd>/</kbd>, <kbd>n</kbd> / <kbd>N</kbd> | YAML | Search (regex), next / previous match |
 | <kbd>w</kbd> | YAML | Toggle wrap |
 | <kbd>f</kbd> | YAML | Toggle full screen |
 | <kbd>Esc</kbd> / <kbd>q</kbd> | all | Clear the filter or search first, then go back one pane; from the first pane back to the node list |

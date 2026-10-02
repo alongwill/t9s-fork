@@ -76,6 +76,7 @@ type browser struct {
 
 	prompting  bool
 	promptKind promptKind
+	promptPrev string // filter to restore if the prompt is cancelled
 	input      textinput.Model
 }
 
@@ -236,7 +237,6 @@ func (b browser) typesIn(cat string) []talos.ResourceDef {
 }
 
 func (b browser) categoryRows(filter string) []catRow {
-	m := newMatcher(filter, true)
 	var rows []catRow
 	for _, c := range catalog.Categories {
 		defs := b.typesIn(c.Key)
@@ -252,37 +252,21 @@ func (b browser) categoryRows(filter string) []catRow {
 				r.present++
 			}
 		}
-		if m.match(c.Label, c.Key) {
-			rows = append(rows, r)
-		}
+		rows = append(rows, r)
 	}
-	return rows
+	return rankFilter(rows, filter, func(r catRow) []string { return []string{r.label, r.key} })
 }
 
 func (b browser) typeRows(cat, filter string) []talos.ResourceDef {
-	m := newMatcher(filter, true)
-	var rows []talos.ResourceDef
-	for _, d := range b.typesIn(cat) {
-		fields := append([]string{d.DisplayType, d.Type}, d.Aliases...)
-		if m.match(fields...) {
-			rows = append(rows, d)
-		}
-	}
-	return rows
+	return rankFilter(b.typesIn(cat), filter, func(d talos.ResourceDef) []string {
+		return append([]string{d.DisplayType, d.Type}, d.Aliases...)
+	})
 }
 
 func filterInstances(items []talos.ResourceMeta, filter string) []talos.ResourceMeta {
-	if filter == "" {
-		return items
-	}
-	m := newMatcher(filter, true)
-	var out []talos.ResourceMeta
-	for _, it := range items {
-		if m.match(it.ID, it.Namespace, it.Phase, it.Version) {
-			out = append(out, it)
-		}
-	}
-	return out
+	return rankFilter(items, filter, func(it talos.ResourceMeta) []string {
+		return []string{it.ID, it.Namespace, it.Phase, it.Version}
+	})
 }
 
 // typeCell describes how a type row's count is shown.
