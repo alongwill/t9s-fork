@@ -25,6 +25,7 @@ func stateHints(app App) []hint {
 			{"↑↓", "Navigate"},
 			{"↵/s", "Services"},
 			{"l", "Log streams"},
+			{"a", "Resources"},
 			{"e", "Extensions"},
 			{"?", "All shortcuts"},
 			{"q", "Quit"},
@@ -129,6 +130,14 @@ func stateHints(app App) []hint {
 			{"↵", "Switch"},
 			{"Esc/q", "Back"},
 		}
+	case StateCategories, StateBrowser:
+		var hs []hint
+		for _, a := range app.browserActions() {
+			if a.visible {
+				hs = append(hs, hint{a.hintLabel(), a.desc})
+			}
+		}
+		return append(hs, hint{"?", "Help"})
 	}
 	return nil
 }

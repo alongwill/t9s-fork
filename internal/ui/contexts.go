@@ -37,6 +37,8 @@ func (app App) handleContextsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		// Reset all state
 		app.nodes = nil
 		app.selNode = nil
+		app.browser = browser{}
+		app.resourceDefs = nil
 		app.services = nil
 		app.extensions = nil
 		app.stats = nil

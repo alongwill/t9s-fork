@@ -8,6 +8,12 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app.handleSearchKey(msg)
 	}
 
+	// Browser prompt (`/` filter, YAML find) swallows every key, including
+	// the global ones below (`x`, `?`).
+	if isBrowserState(app.state) && app.browser.prompting {
+		return app.handleBrowserPrompt(msg)
+	}
+
 	// Confirmation dialog: reboot / shutdown
 	if app.pendingAction != "" {
 		switch msg.String() {
@@ -110,6 +116,8 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app.handleUpgradeKey(msg)
 	case StateContextSwitcher:
 		return app.handleContextsKey(msg)
+	case StateCategories, StateBrowser:
+		return app.handleBrowserKey(msg)
 	}
 	return app, nil
 }

@@ -58,7 +58,8 @@ func buildHelpContent() string {
 		{"t", "Metrics (CPU/RAM)"},
 		{"p", "Processes"},
 		{"c", "Containers"},
-		{"a", "Network addresses"},
+		{"a", "Resource browser"},
+		{"A", "Network addresses"},
 		{"i", "Disks"},
 		{"H", "Cluster health"},
 		{"R", "Reboot node"},
@@ -67,6 +68,9 @@ func buildHelpContent() string {
 		{"K", "Upgrade Kubernetes"},
 		{"r", "Refresh nodes"},
 	}))
+	sb.WriteByte('\n')
+
+	sb.WriteString(browserHelp(section))
 	sb.WriteByte('\n')
 
 	sb.WriteString(section("Services", [][2]string{
@@ -144,4 +148,37 @@ func (app App) renderHelpView(height int) string {
 		app.helpVP.SetContent(buildHelpContent())
 	}
 	return app.helpVP.View()
+}
+
+// browserHelp lists every browser key table, generated from the same
+// keyAction slices that drive dispatch and the hint bar.
+func browserHelp(section func(string, [][2]string) string) string {
+	titles := []struct {
+		kind  paneKind
+		title string
+	}{
+		{paneCategories, "Resource Browser: lists (categories / types / instances)"},
+		{paneInstances, "Resource Browser: instances (extra keys)"},
+		{paneYAML, "Resource Browser: YAML pane"},
+	}
+	var sb strings.Builder
+	seen := map[string]bool{}
+	for _, t := range titles {
+		var rows [][2]string
+		for _, a := range browserActionsFor(t.kind) {
+			id := strings.Join(a.keys, "/") + "|" + a.desc
+			if t.kind == paneInstances && seen[id] {
+				continue
+			}
+			if t.kind == paneCategories {
+				seen[id] = true
+			}
+			rows = append(rows, [2]string{strings.Join(a.keys, " / "), a.desc})
+		}
+		if len(rows) > 0 {
+			sb.WriteString(section(t.title, rows))
+			sb.WriteByte('\n')
+		}
+	}
+	return strings.TrimRight(sb.String(), "\n") + "\n"
 }

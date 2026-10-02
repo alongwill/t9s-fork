@@ -200,6 +200,13 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		if n == nil {
 			return app, nil
 		}
+		return app.openBrowser(*n)
+
+	case "A":
+		n := app.selectedNode()
+		if n == nil {
+			return app, nil
+		}
 		app.selNode = n
 		app.addresses = nil
 		app.addrLoading = true

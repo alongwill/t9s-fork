@@ -38,6 +38,8 @@ const (
 	StateAddresses
 	StateHealth
 	StateHelp
+	StateCategories // resource browser, root pane only
+	StateBrowser    // resource browser, deeper panes
 )
 
 const (
@@ -205,6 +207,11 @@ type App struct {
 	dmesgCur  int
 	healthCur int
 
+	// Resource browser (a on the node list)
+	browser      browser
+	resourceDefs map[string][]talos.ResourceDef // node IP → cached `get rd`
+	resSem       chan struct{}                  // caps concurrent per-type counts
+
 	// Find in log/dmesg views (/ n N)
 	findInput  textinput.Model
 	findActive bool
@@ -245,6 +252,7 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 		healthVP:     viewport.New(80, 20),
 		helpVP:       viewport.New(80, 20),
 		runLogStream: client.StreamLogs,
+		resSem:       make(chan struct{}, 8),
 	}
 }
 
@@ -834,6 +842,8 @@ func resourceLine(app App) string {
 		return "Upgrade Kubernetes"
 	case StateContextSwitcher:
 		return fmt.Sprintf("Contexts (%d)", len(app.contexts))
+	case StateCategories, StateBrowser:
+		return cutWidth(app.breadcrumb(), max(1, app.width-2))
 	}
 	return ""
 }
@@ -876,6 +886,8 @@ func viewTitle(s AppState) string {
 		return "[ Upgrade K8s ]"
 	case StateContextSwitcher:
 		return "[ Contexts ]"
+	case StateCategories, StateBrowser:
+		return "[ Resources ]"
 	}
 	return ""
 }
@@ -886,15 +898,23 @@ func (app App) renderFooter() string {
 		bar := dimStyle.Render("/") + app.searchInput.View()
 		return sepLine + "\n  " + bar
 	}
+	if isBrowserState(app.state) && app.browser.prompting {
+		return sepLine + "\n  " + dimStyle.Render("/") + app.browser.input.View()
+	}
 	status := app.statusMsg
 	if status == "" {
 		status = okStyle.Render("✓ ready")
 	}
 	q := app.searchInput.Value()
+	wrapOn := app.wrapMode
+	if isBrowserState(app.state) {
+		q = app.browserFilterText()
+		wrapOn = app.browser.wrap
+	}
 	if q != "" {
 		status = dimStyle.Render("filter: "+q+"  ") + status
 	}
-	if app.wrapMode {
+	if wrapOn {
 		status = warnStyle.Render("[WRAP]") + "  " + status
 	}
 	if app.verMismatch != "" {
@@ -939,6 +959,8 @@ func (app App) renderMain(height int) string {
 		return app.renderUpgrade(height)
 	case StateContextSwitcher:
 		return app.renderContextSwitcher(height)
+	case StateCategories, StateBrowser:
+		return app.renderBrowser(height)
 	}
 	return ""
 }
