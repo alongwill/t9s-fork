@@ -129,7 +129,8 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		}
 		app.selNode = n
 		app.upgradeForK8s = false
-		app.upgradePreserve = true // default on: required for single-node etcd clusters
+		app.upgradePreserve = true  // legacy talosctl: required for single-node etcd clusters
+		app.upgradeDrain = !n.NoK8s // draining needs Kubernetes
 		app.upgradeConfirm = false
 		app.upgradeRunning = false
 		app.upgradeLines = nil
@@ -137,13 +138,17 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		app.upgradeInput.Reset()
 		// Pre-fill installer image with current node version
 		app.upgradeInput.SetValue("ghcr.io/siderolabs/installer:" + n.Version)
-		app.upgradeInput.Placeholder = "ghcr.io/siderolabs/installer:v1.7.0"
+		app.upgradeInput.Placeholder = "ghcr.io/siderolabs/installer:v1.14.2"
 		app = app.goTo(StateUpgradeTalos)
 		return app, app.upgradeInput.Focus()
 
 	case "K":
 		n := app.selectedNode()
 		if n == nil {
+			return app, nil
+		}
+		if !app.clusterHasKubernetes() {
+			app.statusMsg = warnStyle.Render("Kubernetes is not configured on this cluster (k8s-less mode)")
 			return app, nil
 		}
 		app.selNode = n

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -138,7 +139,8 @@ type App struct {
 	upgradeCancel   context.CancelFunc
 	upgradeVP       viewport.Model
 	upgradeForK8s   bool
-	upgradePreserve bool
+	upgradePreserve bool // legacy talosctl (< 1.14) only
+	upgradeDrain    bool // talosctl >= 1.14: --drain
 	upgradeConfirm  bool
 	upgradeRunning  bool
 
@@ -213,7 +215,7 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 	client := talos.New(cfgPath, talosCtx)
 
 	ti := textinput.New()
-	ti.Placeholder = "ghcr.io/siderolabs/installer:v1.6.x"
+	ti.Placeholder = "ghcr.io/siderolabs/installer:v1.14.2"
 	ti.CharLimit = 256
 
 	si := textinput.New()
@@ -293,13 +295,26 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clientVersionMsg:
 		app.clientVer = msg.version
+		app.client.SetClientVersion(msg.version)
 		app.verMismatch = checkVersionMismatch(app.clientVer, app.serverVer)
 		return app, nil
 
-	case kubeVersionsMsg:
+	case nodeDetailsMsg:
 		for i := range app.nodes {
-			if v, ok := msg.versions[app.nodes[i].IP]; ok {
-				app.nodes[i].KubeVersion = v
+			d, ok := msg.details[app.nodes[i].IP]
+			if !ok {
+				continue
+			}
+			app.nodes[i].KubeVersion = d.KubeVersion
+			app.nodes[i].NoK8s = d.NoK8s
+			app.nodes[i].Unmet = d.Status.UnmetConditions
+			if app.inRebootWindow(app.nodes[i].IP) {
+				continue
+			}
+			if d.StatusErr != nil {
+				app.nodes[i].Status = "unreachable"
+			} else {
+				app.nodes[i].Status = d.Status.NodeStatus()
 			}
 		}
 		return app, nil
@@ -309,15 +324,31 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			app.statusMsg = errStyle.Render("Error: " + msg.err.Error())
 		} else {
+			// Carry over per-node details from the previous refresh so the
+			// list doesn't flicker while they are re-fetched.
+			prev := make(map[string]talos.Node, len(app.nodes))
+			for _, n := range app.nodes {
+				prev[n.IP] = n
+			}
+			for i := range msg.nodes {
+				if p, ok := prev[msg.nodes[i].IP]; ok {
+					msg.nodes[i].KubeVersion = p.KubeVersion
+					msg.nodes[i].NoK8s = p.NoK8s
+					msg.nodes[i].Status = p.Status
+					msg.nodes[i].Unmet = p.Unmet
+				} else {
+					msg.nodes[i].Status = "…"
+				}
+			}
 			app.nodes = msg.nodes
 			if app.nodeCur >= len(app.nodes) {
 				app.nodeCur = max(0, len(app.nodes)-1)
 			}
 			app.statusMsg = fmt.Sprintf("%d nodes", len(app.nodes))
 
-			// Override status for nodes still within their reboot/shutdown window.
-			// talosctl get members always reports "ready" even right after the
-			// command is sent, so we keep the transitional status for 90 seconds.
+			// Override status for nodes still within their reboot/shutdown window:
+			// the node may keep answering "running" for a few seconds after the
+			// command is sent, so the transitional status is kept for 90 seconds.
 			for i := range app.nodes {
 				if t, ok := app.rebootingAt[app.nodes[i].IP]; ok {
 					if time.Since(t) < 90*time.Second {
@@ -334,7 +365,7 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				app.verMismatch = checkVersionMismatch(app.clientVer, app.serverVer)
 			}
 		}
-		return app, app.loadKubeVersions()
+		return app, app.loadNodeDetails()
 
 	case servicesLoadedMsg:
 		app.svcLoading = false
@@ -738,7 +769,11 @@ func resourceLine(app App) string {
 	switch app.state {
 	case StateNodeList:
 		if len(app.nodes) > 0 {
-			return fmt.Sprintf("Members (%d)", len(app.nodes))
+			line := fmt.Sprintf("Members (%d)", len(app.nodes))
+			if n := app.selectedNode(); n != nil && len(n.Unmet) > 0 {
+				line += fmt.Sprintf(" · %s unmet: %s", n.Hostname, strings.Join(n.Unmet, ", "))
+			}
+			return line
 		}
 		return "Members"
 	case StateServices:
@@ -1030,14 +1065,52 @@ func (app App) loadAddresses() tea.Cmd {
 	}
 }
 
-func (app App) loadKubeVersions() tea.Cmd {
+func (app App) loadNodeDetails() tea.Cmd {
 	client := app.client
 	nodes := app.nodes
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return kubeVersionsMsg{versions: client.GetKubeVersions(ctx, nodes)}
+		return nodeDetailsMsg{details: client.GetNodeDetails(ctx, nodes)}
 	}
+}
+
+// inRebootWindow reports whether a reboot/shutdown was sent to ip recently.
+func (app App) inRebootWindow(ip string) bool {
+	t, ok := app.rebootingAt[ip]
+	return ok && time.Since(t) < 90*time.Second
+}
+
+// controlPlaneNode returns the node to target for cluster-wide commands
+// (health, upgrade-k8s), which talosctl 1.14 runs against exactly one node:
+// preferred if it is a controlplane, else the first controlplane, else preferred.
+func (app App) controlPlaneNode(preferred *talos.Node) string {
+	if preferred != nil && preferred.Role == "controlplane" {
+		return preferred.IP
+	}
+	for _, n := range app.nodes {
+		if n.Role == "controlplane" {
+			return n.IP
+		}
+	}
+	if preferred != nil {
+		return preferred.IP
+	}
+	return ""
+}
+
+// clusterHasKubernetes is false only when every node is known to run
+// without Kubernetes (Talos 1.14 k8s-less mode).
+func (app App) clusterHasKubernetes() bool {
+	if len(app.nodes) == 0 {
+		return true
+	}
+	for _, n := range app.nodes {
+		if !n.NoK8s {
+			return true
+		}
+	}
+	return false
 }
 
 func loadClientVersion() tea.Cmd {
@@ -1081,7 +1154,7 @@ func checkVersionMismatch(client, server string) string {
 		diff = -diff
 	}
 	if diff > 1 {
-		return fmt.Sprintf("⚠ talosctl client %s ≠ server %s — update: curl -sL https://github.com/siderolabs/talos/releases/download/%s/talosctl-linux-amd64 -o ~/bin/talosctl", client, server, server)
+		return fmt.Sprintf("⚠ talosctl client %s ≠ server %s — update: curl -sL https://github.com/siderolabs/talos/releases/download/%s/talosctl-%s-%s -o ~/bin/talosctl", client, server, server, runtime.GOOS, runtime.GOARCH)
 	}
 	if diff == 1 {
 		return fmt.Sprintf("⚠ talosctl client %s / server %s", client, server)

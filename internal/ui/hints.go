@@ -120,7 +120,7 @@ func stateHints(app App) []hint {
 			return []hint{{"y", "Confirm"}, {"n/Esc", "Cancel"}}
 		}
 		if app.state == StateUpgradeTalos {
-			return []hint{{"↵", "Confirm"}, {"p", "--preserve"}, {"Esc/q", "Back"}}
+			return []hint{{"↵", "Confirm"}, {"tab", "Toggle drain/preserve"}, {"Esc/q", "Back"}}
 		}
 		return []hint{{"↵", "Confirm"}, {"Esc/q", "Back"}}
 	case StateContextSwitcher:

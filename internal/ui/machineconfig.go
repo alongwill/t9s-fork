@@ -2,7 +2,9 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -267,6 +269,12 @@ func (app App) applyMachineConfig() tea.Cmd {
 // In that output spec: is a scalar string containing the full machine config
 // YAML with literal \n characters. This function parses the string and
 // re-marshals it with proper yaml.v3 indentation.
+//
+// Since Talos 1.12 (and heavily in 1.14) the machine config is a multi-document
+// YAML stream: the legacy v1alpha1 document followed by documents such as
+// HostnameConfig, SysctlConfig, KubeletConfig, ... Every document must be kept,
+// because the edited content is sent back with `apply-config`, which replaces
+// the whole config — dropping a document would delete it from the node.
 func extractSpecContent(raw string) string {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(raw), &doc); err != nil || doc.Kind == 0 {
@@ -289,15 +297,7 @@ func extractSpecContent(raw string) string {
 		if specNode.Value == "" {
 			return raw
 		}
-		var inner yaml.Node
-		if err := yaml.Unmarshal([]byte(specNode.Value), &inner); err != nil {
-			return specNode.Value
-		}
-		b, err := yaml.Marshal(&inner)
-		if err != nil {
-			return specNode.Value
-		}
-		return string(b)
+		return reformatYAMLDocuments(specNode.Value)
 
 	case yaml.MappingNode:
 		b, err := yaml.Marshal(specNode)
@@ -307,6 +307,36 @@ func extractSpecContent(raw string) string {
 		return string(b)
 	}
 	return raw
+}
+
+// reformatYAMLDocuments re-marshals every document of a YAML stream and joins
+// them with "---" separators. On any parse error the input is returned as-is
+// so nothing is ever lost.
+func reformatYAMLDocuments(s string) string {
+	dec := yaml.NewDecoder(strings.NewReader(s))
+	var docs []string
+	for {
+		var doc yaml.Node
+		err := dec.Decode(&doc)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return s
+		}
+		if len(doc.Content) == 0 || doc.Content[0].Tag == "!!null" {
+			continue // empty document (e.g. trailing "---")
+		}
+		b, err := yaml.Marshal(&doc)
+		if err != nil {
+			return s
+		}
+		docs = append(docs, string(b))
+	}
+	if len(docs) == 0 {
+		return s
+	}
+	return strings.Join(docs, "---\n")
 }
 
 // yamlFindKey returns the value node for the given key in a mapping node.

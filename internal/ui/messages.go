@@ -103,8 +103,8 @@ type clientVersionMsg struct {
 	version string // talosctl client version, e.g. "v1.11.0"
 }
 
-type kubeVersionsMsg struct {
-	versions map[string]string // node IP → kubelet version
+type nodeDetailsMsg struct {
+	details map[string]talos.NodeDetails // node IP → details
 }
 
 type editorDoneMsg struct{ err error }

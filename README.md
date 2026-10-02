@@ -28,13 +28,13 @@ The aim of this project is to make it easier to navigate, observe and manage you
 ## Features
 
 - 🖥️ **Full-screen responsive layout** — adapts to any terminal size, columns expand with the window
-- 📋 **Node list** — Talos version, Kubernetes version, role and status at a glance
+- 📋 **Node list** — Talos version, Kubernetes version, role and live machine stage/readiness (from `MachineStatus`)
 - 📡 **Live streaming:** service logs, dynamically discovered node log streams and dmesg with an interactive ▶ cursor
 - 🔍 **Per-node resource views** — disks, processes, containers, network addresses
 - 📊 **Metrics** — CPU/RAM stats with delta, auto-refreshed every 5s
 - 📄 **Machine config** — read-only YAML viewer
 - 🧩 **Extensions** — installed list + Siderolabs catalog browser (requires `crane`)
-- ⬆️ **Upgrades** — Talos and Kubernetes, with version pre-fill and `--preserve` toggle
+- ⬆️ **Upgrades** — Talos and Kubernetes, with version pre-fill and a `--drain` toggle (`--preserve` on older talosctl)
 - 🩺 **Health** — streaming cluster health checks
 - 🔀 **Multi-context** — switch talosconfig context at runtime (`x`)
 - ⚡ **Search** — real-time filtering in every list view (`/`)
@@ -78,7 +78,7 @@ sudo mv t9s /usr/local/bin/
 
 | Requirement | Notes |
 |---|---|
-| `talosctl` **≥ 1.5** | must be in `$PATH` |
+| `talosctl` **≥ 1.8** (1.14 recommended) | must be in `$PATH` |
 | A valid talosconfig | `~/.talos/config` or `$TALOSCONFIG` |
 | `crane` | optional — only for the extension catalog view (`C`) |
 
@@ -86,10 +86,16 @@ sudo mv t9s /usr/local/bin/
 
 | talosctl | Status |
 |----------|--------|
-| **1.7.x** | ✅ Tested |
-| **1.6.x** | ✅ Tested |
-| **1.5.x** | ✅ Minimum supported |
-| < 1.5 | ❌ `talosctl get disks` / `get extensions` not available |
+| **1.14.x** | ✅ Target — uses `--drain`, `--progress plain`, `--namespace cri`, `kubeletstatus` |
+| **1.8.x – 1.13.x** | ✅ Supported — falls back to `--preserve`, `-k`, `kubeletspec` |
+| < 1.8 | ⚠️ `get disks` / `get volumestatus` not available |
+
+Talos 1.14 specifics handled by t9s:
+
+- **Multi-document machine config** — the viewer/editor keeps every document (`HostnameConfig`, `KubeletConfig`, …), not just `v1alpha1`.
+- **Kubernetes-less clusters** (experimental in 1.14) — no K8S version is shown, `K` (upgrade-k8s) is disabled, `--drain` defaults off.
+- **Single-node commands** — `health` and `upgrade-k8s` are sent to one controlplane node, as 1.14 requires.
+- **`kubeletspec` is sensitive** (needs `os:admin`) — t9s reads the non-sensitive `kubeletstatus` first.
 
 > [!NOTE]
 > Your talosctl client version should match your cluster version (±1 minor).
@@ -105,19 +111,20 @@ sudo mv t9s /usr/local/bin/
 | Log stream discovery | `talosctl __completeNoDesc logs --nodes=<node> ''` (falls back to `__complete`) | n/a |
 | Logs | `talosctl logs -f` | 1.0 |
 | Dmesg | `talosctl dmesg -f` | 1.0 |
-| Machine config | `talosctl get machineconfig -o yaml` | 1.0 |
+| Machine config | `talosctl get machineconfig v1alpha1 -o yaml` (needs `os:admin`) | 1.0 |
 | Edit config | `talosctl apply-config --mode auto` | 1.0 |
 | Patch config | `talosctl patch machineconfig --patch @file` | 1.2 |
 | Addresses | `talosctl get addresses -o json` | 1.2 |
 | Extensions | `talosctl get extensions -o json` | 1.3 |
-| K8s version | `talosctl get kubeletspec -o json` | 1.3 |
-| Disks | `talosctl get disks -o json` | **1.5** |
+| K8s version | `talosctl get kubeletstatus -o json`, fallback `get kubeletspec` | 1.14 / 1.3 |
+| Node stage / readiness | `talosctl get machinestatus -o json` | 1.2 |
+| Disks | `talosctl get disks -o json` + `get volumestatus -o json` | **1.8** |
 | Processes | `talosctl processes` | 1.0 |
-| Containers | `talosctl containers` | 1.0 |
+| Containers | `talosctl containers` (`--namespace cri` on 1.14, `-k` before) | 1.0 |
 | Stats | `talosctl stats` | 1.0 |
-| Health | `talosctl health` | 1.0 |
-| Upgrade Talos | `talosctl upgrade` | 1.0 |
-| Upgrade K8s | `talosctl upgrade-k8s` | 1.0 |
+| Health | `talosctl health -n <controlplane>` | 1.0 |
+| Upgrade Talos | `talosctl upgrade --progress plain --drain=<bool>` (1.14) | 1.0 |
+| Upgrade K8s | `talosctl upgrade-k8s -n <controlplane>` | 1.0 |
 | Reboot / Shutdown | `talosctl reboot` / `shutdown` | 1.0 |
 
 </details>
@@ -193,7 +200,7 @@ t9s uses aliases to navigate most Talos resources — hit `?` at any time for th
 | Key | Action |
 |-----|--------|
 | type | Enter image or version (pre-filled with current) |
-| <kbd>p</kbd> | Toggle `--preserve` (default on — required for single-node etcd) |
+| <kbd>Tab</kbd> | Toggle `--drain` (talosctl 1.14+, default on unless k8s-less) or `--preserve` (older talosctl, default on) |
 | <kbd>Enter</kbd> | Confirm |
 | <kbd>y</kbd> / <kbd>n</kbd> | Confirm / cancel |
 | <kbd>Esc</kbd> | Back (upgrade keeps running in background) |

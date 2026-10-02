@@ -7,6 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/florianspk/t9s/internal/talos"
 )
 
 func waitForUpgradeLine(ch <-chan string) tea.Cmd {
@@ -67,8 +69,13 @@ func (app App) handleUpgradeKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		app = app.goBack()
 		return app, nil
 
-	case "p":
-		app.upgradePreserve = !app.upgradePreserve
+	case "tab":
+		// tab, not a letter: letters must reach the input (image refs, digests).
+		if app.client.ModernCLI() {
+			app.upgradeDrain = !app.upgradeDrain
+		} else {
+			app.upgradePreserve = !app.upgradePreserve
+		}
 		return app, nil
 
 	case "enter":
@@ -101,7 +108,10 @@ func (app App) startUpgrade() (App, tea.Cmd) {
 		node = app.selNode.IP
 	}
 	forK8s := app.upgradeForK8s
-	preserve := app.upgradePreserve
+	if forK8s {
+		node = app.controlPlaneNode(app.selNode)
+	}
+	opts := talos.UpgradeOptions{Image: val, Drain: app.upgradeDrain, Preserve: app.upgradePreserve}
 
 	upgradeCh := app.upgradeCh
 	upgradeCtx := app.upgradeCtx
@@ -109,9 +119,9 @@ func (app App) startUpgrade() (App, tea.Cmd) {
 		defer close(upgradeCh)
 		var err error
 		if forK8s {
-			err = client.UpgradeK8s(upgradeCtx, val, upgradeCh)
+			err = client.UpgradeK8s(upgradeCtx, node, val, upgradeCh)
 		} else {
-			err = client.UpgradeTalos(upgradeCtx, node, val, preserve, upgradeCh)
+			err = client.UpgradeTalos(upgradeCtx, node, opts, upgradeCh)
 		}
 		if err != nil && upgradeCtx.Err() == nil {
 			upgradeCh <- fmt.Sprintf("ERROR: %v", err)
@@ -119,6 +129,18 @@ func (app App) startUpgrade() (App, tea.Cmd) {
 	}()
 
 	return app, waitForUpgradeLine(app.upgradeCh)
+}
+
+// upgradeFlagNote renders the upgrade toggle as it will be passed to talosctl.
+func (app App) upgradeFlagNote() string {
+	flag, on := "--preserve", app.upgradePreserve
+	if app.client.ModernCLI() {
+		flag, on = "--drain", app.upgradeDrain
+	}
+	if on {
+		return okStyle.Render(fmt.Sprintf("%s=true", flag))
+	}
+	return dimStyle.Render(fmt.Sprintf("%s=false", flag))
 }
 
 func (app App) renderUpgrade(height int) string {
@@ -146,10 +168,7 @@ func (app App) renderUpgrade(height int) string {
 		if isK8s {
 			msg = fmt.Sprintf("Upgrade Kubernetes to %s?", okStyle.Render(val))
 		} else {
-			preserveNote := dimStyle.Render("--preserve=false")
-			if app.upgradePreserve {
-				preserveNote = okStyle.Render("--preserve=true")
-			}
+			preserveNote := app.upgradeFlagNote()
 			msg = fmt.Sprintf("Upgrade Talos on %s to image %s  %s",
 				titleStyle.Render(app.selNode.Hostname),
 				okStyle.Render(val),
@@ -171,21 +190,22 @@ func (app App) renderUpgrade(height int) string {
 	}
 
 	// Input phase
-	label := "Image (e.g. ghcr.io/siderolabs/installer:v1.6.x):"
+	label := "Image (e.g. ghcr.io/siderolabs/installer:v1.14.2 or factory.talos.dev/installer/<schematic>:v1.14.2):"
 	if isK8s {
-		label = "Target Kubernetes version (e.g. 1.29.0):"
+		label = "Target Kubernetes version (e.g. 1.37.0):"
 	}
 	preserveLine := ""
 	if !isK8s {
-		preserveVal := dimStyle.Render("off")
-		if app.upgradePreserve {
-			preserveVal = okStyle.Render("on")
+		flag, on, note := "--preserve", app.upgradePreserve, "(required for single-node etcd clusters)"
+		if app.client.ModernCLI() {
+			flag, on, note = "--drain", app.upgradeDrain, "(cordon + drain the node first; needs Kubernetes)"
 		}
-		preserveLine = fmt.Sprintf("\n  %s --preserve %s  %s\n",
-			keyStyle.Render("[p]"),
-			preserveVal,
-			dimStyle.Render("(required for single-node etcd clusters)"),
-		)
+		val := dimStyle.Render("off")
+		if on {
+			val = okStyle.Render("on")
+		}
+		preserveLine = fmt.Sprintf("\n  %s %s %s  %s\n",
+			keyStyle.Render("[tab]"), flag, val, dimStyle.Render(note))
 	}
 	inputView := fmt.Sprintf("\n  %s\n\n  %s\n%s",
 		dimStyle.Render(label),

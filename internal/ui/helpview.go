@@ -118,6 +118,7 @@ func buildHelpContent() string {
 
 	sb.WriteString(section("Upgrade", [][2]string{
 		{"type", "Enter image / version"},
+		{"tab", "Toggle --drain (--preserve on old talosctl)"},
 		{"↵", "Confirm"},
 		{"y / n", "Yes / No on confirm step"},
 		{"Esc", "Abort / back"},

@@ -72,8 +72,10 @@ func colorNodeStatus(s string) string {
 	switch s {
 	case "ready":
 		return okStyle.Render(s)
-	case "rebooting":
+	case "rebooting", "booting", "upgrading", "installing", "…":
 		return warnStyle.Render(s)
+	case "maintenance", "resetting", "unreachable":
+		return errStyle.Render(s)
 	case "shutting-down":
 		return errStyle.Render(s)
 	case "not-ready", "not ready":

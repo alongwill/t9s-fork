@@ -58,7 +58,7 @@ func (app App) renderAddresses(height int) string {
 	)
 	// ADDRESS expands with terminal width; SCOPE gets the rest after fixed cols
 	// fixed overhead: cursor/indent(2) + colIface(14) + sep(2) + sep(2) + colFamily(8) + sep(2) = 30
-	colAddr := app.width/3
+	colAddr := app.width / 3
 	if colAddr < 22 {
 		colAddr = 22
 	}

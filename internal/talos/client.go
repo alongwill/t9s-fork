@@ -12,15 +12,19 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Client struct {
 	ConfigPath string
 	Context    string
+
+	mu          sync.Mutex
+	clientMinor int // talosctl minor version, -1 until known
 }
 
 func New(configPath, ctx string) *Client {
-	return &Client{ConfigPath: configPath, Context: ctx}
+	return &Client{ConfigPath: configPath, Context: ctx, clientMinor: -1}
 }
 
 func (c *Client) baseArgs() []string {
@@ -147,7 +151,6 @@ func (c *Client) GetNodes(ctx context.Context) ([]Node, error) {
 			DisplayIP: displayIP, // shown in the UI
 			Role:      e.Spec.MachineType,
 			Version:   version,
-			Status:    "ready",
 		})
 	}
 	return nodes, nil
@@ -222,7 +225,7 @@ func (c *Client) GetExtensions(ctx context.Context, node string) ([]Extension, e
 // --- Machine Config ---
 
 func (c *Client) GetMachineConfig(ctx context.Context, node string) (string, error) {
-	data, err := c.run(ctx, "get", "machineconfig", "-n", node, "-o", "yaml")
+	data, err := c.run(ctx, "get", "machineconfig", "v1alpha1", "-n", node, "-o", "yaml")
 	if err != nil {
 		return "", err
 	}
@@ -308,71 +311,40 @@ func (c *Client) StreamDmesg(ctx context.Context, node string, ch chan<- string)
 	cmd.Wait() //nolint:errcheck
 }
 
-func (c *Client) UpgradeTalos(ctx context.Context, node, image string, preserve bool, ch chan<- string) error {
-	cmdArgs := append(c.baseArgs(), "upgrade", "-n", node, "--image", image)
-	if preserve {
-		cmdArgs = append(cmdArgs, "--preserve")
-	}
-	return c.runStreaming(ctx, ch, cmdArgs...)
+// UpgradeOptions controls `talosctl upgrade`.
+type UpgradeOptions struct {
+	Image    string
+	Drain    bool // talosctl >= 1.14: cordon+drain the node first (needs Kubernetes)
+	Preserve bool // talosctl < 1.14 only; a no-op against Talos >= 1.14 nodes
 }
 
-func (c *Client) UpgradeK8s(ctx context.Context, version string, ch chan<- string) error {
+func (c *Client) UpgradeTalos(ctx context.Context, node string, opts UpgradeOptions, ch chan<- string) error {
+	args := append(c.baseArgs(), upgradeArgs(node, opts, c.ModernCLI())...)
+	return c.runStreaming(ctx, ch, args...)
+}
+
+func upgradeArgs(node string, opts UpgradeOptions, modern bool) []string {
+	args := []string{"upgrade", "-n", node, "--image", opts.Image}
+	if modern {
+		// talosctl 1.14 upgrades through LifecycleService: image pull and
+		// install progress are streamed, then it waits for the node to come
+		// back. Plain progress keeps the output free of spinners/ANSI.
+		return append(args, "--progress", "plain", fmt.Sprintf("--drain=%t", opts.Drain))
+	}
+	if opts.Preserve {
+		args = append(args, "--preserve")
+	}
+	return args
+}
+
+// UpgradeK8s runs `talosctl upgrade-k8s`. talosctl 1.14 requires exactly one
+// (controlplane) node.
+func (c *Client) UpgradeK8s(ctx context.Context, node, version string, ch chan<- string) error {
 	cmdArgs := append(c.baseArgs(), "upgrade-k8s", "--to", version)
+	if node != "" {
+		cmdArgs = append(cmdArgs, "-n", node)
+	}
 	return c.runStreaming(ctx, ch, cmdArgs...)
-}
-
-// GetKubernetesVersion returns the current Kubernetes version by reading
-// the kubelet image tag from KubeletSpec — available on all node types.
-// Image format: "ghcr.io/siderolabs/kubelet:v1.31.0"
-func (c *Client) GetKubernetesVersion(ctx context.Context, node string) (string, error) {
-	data, err := c.run(ctx, "get", "kubeletspec", "-n", node, "-o", "json")
-	if err != nil {
-		return "", err
-	}
-	const prefix = "ghcr.io/siderolabs/kubelet:"
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if i := strings.Index(line, prefix); i >= 0 {
-			tag := line[i+len(prefix):]
-			for j, ch := range tag {
-				if ch == '"' || ch == ',' || ch == ' ' {
-					tag = tag[:j]
-					break
-				}
-			}
-			return strings.TrimPrefix(tag, "v"), nil
-		}
-	}
-	return "", fmt.Errorf("kubelet image version not found in kubeletspec")
-}
-
-// GetKubeVersions fetches the kubelet version for each node concurrently.
-// Returns a map of node IP → version string (e.g. "v1.31.0").
-func (c *Client) GetKubeVersions(ctx context.Context, nodes []Node) map[string]string {
-	type result struct {
-		ip  string
-		ver string
-	}
-	ch := make(chan result, len(nodes))
-	for _, n := range nodes {
-		n := n
-		go func() {
-			v, err := c.GetKubernetesVersion(ctx, n.IP)
-			if err == nil {
-				ch <- result{n.IP, "v" + v}
-			} else {
-				ch <- result{n.IP, ""}
-			}
-		}()
-	}
-	out := make(map[string]string, len(nodes))
-	for range nodes {
-		r := <-ch
-		if r.ver != "" {
-			out[r.ip] = r.ver
-		}
-	}
-	return out
 }
 
 // --- Extension Catalog ---
@@ -509,11 +481,10 @@ type diskEnvelope struct {
 		DevPath    string `json:"dev_path"`
 		Model      string `json:"model"`
 		Serial     string `json:"serial"`
-		Type       string `json:"type"`
 		Size       uint64 `json:"size"`
-		SystemDisk bool   `json:"system_disk"`
-		Name       string `json:"name"`
 		Transport  string `json:"transport"`
+		Rotational bool   `json:"rotational"`
+		CDROM      bool   `json:"cdrom"`
 	} `json:"spec"`
 }
 
@@ -535,22 +506,37 @@ func (c *Client) GetDisks(ctx context.Context, node string) ([]DiskInfo, error) 
 		if dev == "" {
 			dev = "/dev/" + e.Metadata.ID
 		}
-		diskType := e.Spec.Type
-		if diskType == "" {
-			diskType = e.Spec.Transport
-		}
 		result = append(result, DiskInfo{
 			Dev:    dev,
 			Model:  e.Spec.Model,
 			Serial: e.Spec.Serial,
-			Type:   diskType,
+			Type:   diskType(e.Spec.Transport, e.Spec.Rotational, e.Spec.CDROM),
 			Size:   FormatBytes(e.Spec.Size),
 		})
 	}
 	return result, nil
 }
 
-// formatBytes converts a byte count to a compact human-readable string.
+// diskType derives a short media type; the Disk resource has no "type" field.
+func diskType(transport string, rotational, cdrom bool) string {
+	switch {
+	case cdrom:
+		return "CD"
+	case transport == "nvme":
+		return "NVME"
+	case transport == "usb":
+		return "USB"
+	case transport == "virtio":
+		return "VIRTIO"
+	case rotational:
+		return "HDD"
+	case transport == "":
+		return ""
+	default:
+		return "SSD"
+	}
+}
+
 // FormatBytes converts a byte count to a compact human-readable string.
 func FormatBytes(b uint64) string {
 	const unit = 1000
@@ -572,26 +558,30 @@ func (c *Client) GetProcesses(ctx context.Context, node string) ([]ProcessInfo, 
 	if err != nil {
 		return nil, err
 	}
+	return parseProcessLines(data), nil
+}
+
+// parseProcessLines parses `talosctl processes`. Columns are looked up by
+// header name: talosctl 1.10+ prints
+//
+//	NODE PID STATE THREADS CPU-TIME VIRTMEM RESMEM LABEL COMMAND
+//
+// where LABEL (SELinux) is empty on most nodes.
+func parseProcessLines(data []byte) []ProcessInfo {
 	var result []ProcessInfo
-	for i, line := range strings.Split(string(data), "\n") {
-		if i == 0 || strings.TrimSpace(line) == "" {
+	for _, row := range parseTable(data) {
+		if row["PID"] == "" {
 			continue
 		}
-		f := strings.Fields(line)
-		// NODE PID PPID STATE THREADS CPU-TIME VIRTUALM RESIDENTM COMMAND...
-		if len(f) < 9 {
-			continue
-		}
-		cmd := strings.Join(f[8:], " ")
 		result = append(result, ProcessInfo{
-			PID:     f[1],
-			State:   f[3],
-			CPUTime: f[5],
-			ResMem:  f[7],
-			Command: cmd,
+			PID:     row["PID"],
+			State:   row["STATE"],
+			CPUTime: row["CPU-TIME"],
+			ResMem:  row["RESMEM"],
+			Command: row["COMMAND"],
 		})
 	}
-	return result, nil
+	return result
 }
 
 // --- Containers ---
@@ -660,7 +650,12 @@ func (c *Client) GetContainers(ctx context.Context, node string) ([]ContainerInf
 	// Query system namespace (talos services).
 	data1, err1 := c.run(ctx, "containers", "-n", node)
 	// Query k8s.io namespace (kubernetes pods).
-	data2, err2 := c.run(ctx, "containers", "-k", "-n", node)
+	// talosctl 1.14 deprecates -k in favour of --namespace cri.
+	k8sFlag := "-k"
+	if c.ModernCLI() {
+		k8sFlag = "--namespace=cri"
+	}
+	data2, err2 := c.run(ctx, "containers", k8sFlag, "-n", node)
 
 	if err1 != nil && err2 != nil {
 		return nil, err1
@@ -719,8 +714,13 @@ func (c *Client) GetAddresses(ctx context.Context, node string) ([]AddressInfo, 
 
 // --- Health ---
 
-func (c *Client) StreamHealth(ctx context.Context, ch chan<- string) {
+// StreamHealth runs `talosctl health` against node (talosctl 1.14 requires
+// exactly one node; empty uses the talosconfig context's nodes).
+func (c *Client) StreamHealth(ctx context.Context, node string, ch chan<- string) {
 	cmdArgs := append(c.baseArgs(), "health")
+	if node != "" {
+		cmdArgs = append(cmdArgs, "-n", node)
+	}
 	cmd := exec.CommandContext(ctx, "talosctl", cmdArgs...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

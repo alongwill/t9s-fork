@@ -89,9 +89,10 @@ func startHealth(app App) (App, tea.Cmd) {
 	client := app.client
 	ch := app.healthCh
 	ctx := app.healthCtx
+	node := app.controlPlaneNode(app.selNode)
 	go func() {
 		defer close(ch)
-		client.StreamHealth(ctx, ch)
+		client.StreamHealth(ctx, node, ch)
 	}()
 	return app, waitForHealthLine(app.healthCh)
 }

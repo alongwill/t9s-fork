@@ -248,10 +248,10 @@ func TestNormalizeContainerStatus(t *testing.T) {
 		{"CONTAINER_EXITED", "STOPPED"},
 		{"SANDBOX_READY", "READY"},
 		{"SANDBOX_NOTREADY", "NOT_READY"},
-		{"RUNNING", "RUNNING"},   // already normalised
-		{"STOPPED", "STOPPED"},   // already normalised
-		{"UNKNOWN", "UNKNOWN"},   // pass-through
-		{"", ""},                 // empty
+		{"RUNNING", "RUNNING"}, // already normalised
+		{"STOPPED", "STOPPED"}, // already normalised
+		{"UNKNOWN", "UNKNOWN"}, // pass-through
+		{"", ""},               // empty
 	}
 	for _, tc := range cases {
 		if got := normalizeContainerStatus(tc.in); got != tc.want {

@@ -4,7 +4,8 @@
 ## What is t9s
 TUI for managing Talos Linux clusters, inspired by k9s. Built in Go with bubbletea v1.3.x + lipgloss v1.1.x.  
 Repo: `github.com/florianspk/t9s` — binary: `./cmd/main.go` → `t9s`  
-Target: Talos Linux v1.6.x+, requires `talosctl` in `$PATH`, optional `crane` for extension catalog.
+Target: Talos Linux v1.14.x (v1.8+ supported), requires `talosctl` in `$PATH`, optional `crane` for extension catalog.
+See `.claude/SKILL.md` for the talosctl output contract, v1.14 changes and how to add a view.
 
 ## Architecture — single-model, subprocess approach
 - **No gRPC**: uses `talosctl` as a subprocess — inherits auth from `~/.talos/config` automatically
@@ -66,7 +67,8 @@ footerH     = 2  // separator + status line
 - Metrics — CPU/RAM with delta, auto-refresh every 5s
 - Machine config — read-only YAML viewer
 - Extensions — installed list + catalog browser (crane)
-- Upgrades — Talos & K8s with version pre-fill, --preserve toggle
+- Upgrades — Talos & K8s with version pre-fill, --drain toggle (--preserve on talosctl < 1.14)
+- Node status — from MachineStatus (stage + readiness, unmet conditions in the resource line)
 - Health — cluster health streaming
 - Multi-context — switch talosconfig context at runtime (`x`)
 - Search — real-time filter in list views (`/`)

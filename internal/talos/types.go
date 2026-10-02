@@ -5,9 +5,11 @@ type Node struct {
 	IP          string // actual node IP used for talosctl -n
 	DisplayIP   string // shown in UI (may include VIP)
 	Role        string
-	Version     string // Talos version
-	KubeVersion string // Kubernetes/kubelet version (fetched async)
-	Status      string
+	Version     string   // Talos version
+	KubeVersion string   // Kubernetes/kubelet version (fetched async)
+	NoK8s       bool     // node runs without Kubernetes (Talos 1.14 k8s-less mode)
+	Status      string   // derived from MachineStatus: ready, not ready, booting, upgrading, …
+	Unmet       []string // unmet readiness conditions, e.g. "nodeReady: node not ready"
 }
 
 type Service struct {
@@ -23,9 +25,9 @@ type Extension struct {
 }
 
 type StatsResult struct {
-	ID        string
-	CPUNanos  int64   // cumulative CPU nanoseconds
-	MemoryMB  float64 // memory in MB
+	ID       string
+	CPUNanos int64   // cumulative CPU nanoseconds
+	MemoryMB float64 // memory in MB
 }
 
 type CatalogExtension struct {
