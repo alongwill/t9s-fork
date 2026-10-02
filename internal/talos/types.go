@@ -78,3 +78,15 @@ type AddressInfo struct {
 	Family    string
 	Scope     string
 }
+
+// ResourceDef describes one COSI resource type, as reported by `get rd`.
+type ResourceDef struct {
+	Type             string // e.g. "AddressStatuses.net.talos.dev"
+	DisplayType      string // e.g. "AddressStatus"
+	Aliases          []string
+	DefaultNamespace string
+	Sensitive        bool
+}
+
+// ResourceMeta is the metadata of one resource instance.
+type ResourceMeta struct{ Namespace, Type, ID, Version, Phase string }
