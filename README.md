@@ -31,6 +31,7 @@ The aim of this project is to make it easier to navigate, observe and manage you
 - 📋 **Node list** — Talos version, Kubernetes version, role and live machine stage/readiness (from `MachineStatus`)
 - 📡 **Live streaming:** service logs, dynamically discovered node log streams and dmesg with an interactive ▶ cursor
 - 🔍 **Per-node resource views** — disks, processes, containers, network addresses
+- 🗂️ **Resource browser** — browse every COSI resource on a node by category (Networking, Block, …), greyed when empty, with a YAML pane (`a` on a node)
 - 📊 **Metrics** — CPU/RAM stats with delta, auto-refreshed every 5s
 - 📄 **Machine config** — read-only YAML viewer
 - 🧩 **Extensions** — installed list + Siderolabs catalog browser (requires `crane`)
@@ -115,6 +116,7 @@ Talos 1.14 specifics handled by t9s:
 | Edit config | `talosctl apply-config --mode auto` | 1.0 |
 | Patch config | `talosctl patch machineconfig --patch @file` | 1.2 |
 | Addresses | `talosctl get addresses -o json` | 1.2 |
+| Resource browser | `talosctl get rd -o json`, `get <type> --namespace <ns> -o json`, `get <type> <id> --namespace <ns> -o yaml` | 1.0 |
 | Extensions | `talosctl get extensions -o json` | 1.3 |
 | K8s version | `talosctl get kubeletstatus -o json`, fallback `get kubeletspec` | 1.14 / 1.3 |
 | Node stage / readiness | `talosctl get machinestatus -o json` | 1.2 |
@@ -167,12 +169,32 @@ t9s uses aliases to navigate most Talos resources — hit `?` at any time for th
 | <kbd>↑</kbd><kbd>↓</kbd> / <kbd>j</kbd><kbd>k</kbd> | Navigate | | <kbd>t</kbd> | Metrics |
 | <kbd>Enter</kbd> / <kbd>s</kbd> | Services | | <kbd>p</kbd> | Processes |
 | <kbd>l</kbd> | Log Streams | | <kbd>c</kbd> | Containers |
-| <kbd>e</kbd> | Extensions | | <kbd>a</kbd> | Network addresses |
+| <kbd>e</kbd> | Extensions | | <kbd>a</kbd> | Resource browser |
 | <kbd>C</kbd> | Extension catalog | | <kbd>i</kbd> | Disks |
 | <kbd>m</kbd> | Machine config | | <kbd>d</kbd> | Dmesg |
 | <kbd>H</kbd> | Cluster health | | <kbd>R</kbd> / <kbd>S</kbd> | Reboot / Shutdown |
 | <kbd>U</kbd> | Upgrade Talos | | <kbd>K</kbd> | Upgrade Kubernetes |
-| <kbd>r</kbd> | Refresh | | | |
+| <kbd>r</kbd> | Refresh | | <kbd>A</kbd> | Network addresses |
+
+> **Changed:** <kbd>a</kbd> now opens the resource browser. The network addresses view moved to <kbd>A</kbd>.
+
+### Resource browser
+
+Opened with <kbd>a</kbd> on a node. Panes open to the right on <kbd>Enter</kbd> (node → categories → types → instances → YAML) and close one at a time on <kbd>Esc</kbd>. Types with no instances on the node are greyed; types that need `os:admin` show `lock`. Keys follow k9s.
+
+| Key | Pane | Action |
+|-----|------|--------|
+| <kbd>↑</kbd><kbd>↓</kbd> / <kbd>j</kbd><kbd>k</kbd> | all | Move / scroll |
+| <kbd>g</kbd> / <kbd>G</kbd>, <kbd>Home</kbd> / <kbd>End</kbd> | all | Top / bottom |
+| <kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>B</kbd>, <kbd>PgDn</kbd> / <kbd>PgUp</kbd> | all | Page down / up |
+| <kbd>Enter</kbd> | lists | Open |
+| <kbd>y</kbd> | instances | Open YAML (same as <kbd>Enter</kbd>) |
+| <kbd>/</kbd> | lists | Filter: case-insensitive regex (literal if invalid), `!term` inverts. <kbd>Enter</kbd> applies, <kbd>Esc</kbd> cancels |
+| <kbd>/</kbd>, <kbd>n</kbd> / <kbd>N</kbd> | YAML | Search, next / previous match |
+| <kbd>w</kbd> | YAML | Toggle wrap |
+| <kbd>f</kbd> | YAML | Toggle full screen |
+| <kbd>Esc</kbd> / <kbd>q</kbd> | all | Clear the filter or search first, then go back one pane; from the first pane back to the node list |
+| <kbd>Ctrl</kbd>+<kbd>R</kbd> | all | Reload the data behind the current pane |
 
 ### Log Streams
 
@@ -222,7 +244,8 @@ t9s uses aliases to navigate most Talos resources — hit `?` at any time for th
 | Metrics | <kbd>t</kbd> | CPU/RAM per container with delta |
 | Processes | <kbd>p</kbd> | Running processes sorted by memory |
 | Containers | <kbd>c</kbd> | containerd containers (system + k8s namespaces) |
-| Addresses | <kbd>a</kbd> | Network interfaces and addresses |
+| Resources | <kbd>a</kbd> | Resource browser: categories, types, instances, YAML |
+| Addresses | <kbd>A</kbd> | Network interfaces and addresses |
 | Disks | <kbd>i</kbd> | Block devices — model, serial, type, size |
 | Health | <kbd>H</kbd> | Cluster health checks (streaming) |
 | Upgrade Talos | <kbd>U</kbd> | Upgrade with pre-filled installer image |

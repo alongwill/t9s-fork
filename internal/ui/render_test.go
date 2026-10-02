@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/florianspk/t9s/internal/talos"
+	"github.com/muesli/termenv"
 )
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -526,5 +527,168 @@ func TestRenderServicesNoLineExceedsWidth(t *testing.T) {
 				t.Errorf("line width %d > terminal width %d", got, width)
 			}
 		})
+	}
+}
+
+// ── resource browser ─────────────────────────────────────────────────────────
+
+var browserSizes = []struct{ w, h int }{{80, 24}, {120, 40}, {200, 50}}
+
+func TestRenderBrowserHeightAndWidthBudget(t *testing.T) {
+	for _, sz := range browserSizes {
+		for depth := 1; depth <= 4; depth++ {
+			for _, wrap := range []bool{false, true} {
+				sz, depth, wrap := sz, depth, wrap
+				t.Run(fmt.Sprintf("w%d_h%d_depth%d_wrap%v", sz.w, sz.h, depth, wrap), func(t *testing.T) {
+					app := browserApp(sz.w, sz.h, depth, 60)
+					app.browser.wrap = wrap
+					out := app.renderBrowser(app.mainHeight())
+					if got := lineCount(out); got != app.mainHeight() {
+						t.Errorf("output has %d lines, want exactly %d", got, app.mainHeight())
+					}
+					if got := maxLineWidth(out); got > sz.w {
+						t.Errorf("a line is %d cells wide, terminal is %d\n%s", got, sz.w, out)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestRenderBrowserTitleBarFitsHeader(t *testing.T) {
+	app := browserApp(80, 24, 4, 10)
+	app.browser.node.Hostname = strings.Repeat("very-long-hostname-", 6)
+	if w := lipgloss.Width(resourceLine(app)); w > 80-2 {
+		t.Errorf("breadcrumb is %d cells, want ≤ 78", w)
+	}
+}
+
+func TestRenderBrowserCursorVisibleAfterFold(t *testing.T) {
+	for _, sz := range browserSizes {
+		for _, depth := range []int{1, 2, 3} {
+			sz, depth := sz, depth
+			t.Run(fmt.Sprintf("w%d_h%d_depth%d", sz.w, sz.h, depth), func(t *testing.T) {
+				app := browserApp(sz.w, sz.h, depth, 60)
+				rows := app.paneInnerRows(paneTypes)
+				if depth == 3 {
+					rows = app.paneInnerRows(paneInstances)
+				}
+				moves := rows + 12 // well past the fold
+				if depth == 1 {
+					moves = 0 // only one category in the fixtures; nothing to scroll
+				}
+				for i := 0; i < moves; i++ {
+					app = press(t, app, "down")
+				}
+				p, _ := app.browser.top()
+				out := app.renderBrowser(app.mainHeight())
+				var want string
+				switch depth {
+				case 1:
+					want = "▶ Networking"
+				case 2:
+					want = fmt.Sprintf("▶ Thing%02d", p.cur)
+				case 3:
+					want = fmt.Sprintf("▶ eth%d/10.0.0.%d/24", p.cur, p.cur)
+				}
+				if !strings.Contains(out, want) {
+					t.Errorf("cursor row %q (cur=%d scroll=%d) not visible\n%s", want, p.cur, p.scroll, out)
+				}
+				if p.scroll == 0 && depth > 1 && moves >= rows {
+					t.Errorf("window never scrolled (cur=%d)", p.cur)
+				}
+			})
+		}
+	}
+}
+
+func TestRenderBrowserGreyedRowIsDim(t *testing.T) {
+	// Force colour so dimStyle emits escape codes in the test environment.
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.ANSI256)
+	defer lipgloss.SetColorProfile(prev)
+
+	app := browserApp(120, 40, 2, 6)
+	app.browser = app.browser.setCount("Thing03.net.talos.dev", countLocked)
+	out := app.renderBrowser(app.mainHeight())
+	find := func(name string) string {
+		for _, l := range strings.Split(out, "\n") {
+			if strings.Contains(l, name) {
+				return l
+			}
+		}
+		t.Fatalf("row %s not rendered\n%s", name, out)
+		return ""
+	}
+	// Borders and the cursor row carry escapes too, so compare against a
+	// populated, unselected row: only dim styling can add more.
+	esc := func(l string) int { return strings.Count(l, "\x1b[") }
+	base := esc(find("Thing02"))
+	for name, marker := range map[string]string{"Thing01": " -", "Thing03": "lock"} {
+		l := find(name)
+		if esc(l) <= base || !strings.Contains(l, marker) {
+			t.Errorf("%s should be dim and show %q (escapes %d vs %d): %q", name, marker, esc(l), base, l)
+		}
+	}
+	for _, c := range []struct {
+		n    int
+		text string
+		dim  bool
+	}{{0, "-", true}, {countLocked, "lock", true}, {countError, "err", true}, {5, "5", false}} {
+		b := browser{counts: map[string]int{"T": c.n}}
+		if text, dim := b.typeCell(talos.ResourceDef{Type: "T"}); text != c.text || dim != c.dim {
+			t.Errorf("typeCell(%d) = %q,%v want %q,%v", c.n, text, dim, c.text, c.dim)
+		}
+	}
+	b := browser{loading: map[string]bool{"T": true}}
+	if text, _ := b.typeCell(talos.ResourceDef{Type: "T"}); text != "…" {
+		t.Errorf("loading cell = %q", text)
+	}
+}
+
+func TestRenderBrowserTwoPaneCollapseBelow120(t *testing.T) {
+	for _, tc := range []struct{ w, panes int }{{80, 2}, {119, 2}, {120, 3}, {200, 3}} {
+		app := browserApp(tc.w, 30, 4, 10)
+		first := strings.SplitN(app.renderBrowser(app.mainHeight()), "\n", 2)[0]
+		if got := strings.Count(first, "┌"); got != tc.panes {
+			t.Errorf("width %d: %d panes, want %d\n%s", tc.w, got, tc.panes, first)
+		}
+		if strings.Contains(first, "Categories") != (tc.panes == 4) {
+			t.Errorf("width %d: root pane should be hidden\n%s", tc.w, first)
+		}
+	}
+}
+
+func TestRenderBrowserFullScreenYAML(t *testing.T) {
+	for _, sz := range browserSizes {
+		app := browserApp(sz.w, sz.h, 4, 10)
+		app.browser.fullscreen = true
+		out := app.renderBrowser(app.mainHeight())
+		first := strings.SplitN(out, "\n", 2)[0]
+		if strings.Count(first, "┌") != 1 || lipgloss.Width(first) != sz.w {
+			t.Errorf("%dx%d: want one full-width pane, got %q", sz.w, sz.h, first)
+		}
+		if !strings.Contains(out, "metadata:") {
+			t.Errorf("%dx%d: YAML body missing", sz.w, sz.h)
+		}
+	}
+}
+
+func TestRenderBrowserStatesShowMessages(t *testing.T) {
+	app := browserApp(120, 30, 1, 3)
+	app.browser.defs = nil
+	app.browser.defsLoading = true
+	if out := app.renderBrowser(app.mainHeight()); !strings.Contains(out, "loading resource") || !strings.Contains(out, "definitions…") {
+		t.Errorf("loading message missing\n%s", out)
+	}
+	app.browser.defsLoading = false
+	app.browser.defsErr = "rpc error: code = Unavailable"
+	if out := app.renderBrowser(app.mainHeight()); !strings.Contains(out, "Unavailable") {
+		t.Errorf("error message missing\n%s", out)
+	}
+	app = browserApp(120, 30, 4, 3)
+	app.browser = app.browser.withTop(func(p *pane) { p.yaml, p.loading = "", true })
+	if out := app.renderBrowser(app.mainHeight()); !strings.Contains(out, "loading…") {
+		t.Errorf("yaml loading missing\n%s", out)
 	}
 }

@@ -127,13 +127,44 @@ func rowLR(selected bool, left, right string, iw int) string {
 
 func messageLines(iw, inner int, style lipgloss.Style, text string) []string {
 	var out []string
-	for _, c := range wrapChunks(text, max(1, iw-2)) {
+	for _, c := range wordWrap(text, max(1, iw-2)) {
 		if len(out) >= inner {
 			break
 		}
 		out = append(out, style.Render(fit("  "+c, iw)))
 	}
 	return out
+}
+
+// wordWrap breaks s at spaces to at most w cells per line; words longer than
+// w are split hard.
+func wordWrap(s string, w int) []string {
+	var lines []string
+	cur := ""
+	for _, word := range strings.Fields(s) {
+		for lipgloss.Width(word) > w {
+			if cur != "" {
+				lines = append(lines, cur)
+				cur = ""
+			}
+			chunks := wrapChunks(word, w)
+			lines = append(lines, chunks[:len(chunks)-1]...)
+			word = chunks[len(chunks)-1]
+		}
+		switch {
+		case cur == "":
+			cur = word
+		case lipgloss.Width(cur)+1+lipgloss.Width(word) <= w:
+			cur += " " + word
+		default:
+			lines = append(lines, cur)
+			cur = word
+		}
+	}
+	if cur != "" || len(lines) == 0 {
+		lines = append(lines, cur)
+	}
+	return lines
 }
 
 func (app App) categoryLines(p pane, iw, inner int, active bool) []string {
@@ -204,7 +235,7 @@ func padLeft(s string, w int) string {
 }
 
 // instanceLines draws `ID NAMESPACE VERSION PHASE`. Columns are dropped
-// (NAMESPACE, then PHASE, then VERSION) so the ID keeps at least 14 cells.
+// (NAMESPACE, then PHASE, then VER) so the ID keeps at least 14 cells.
 func (app App) instanceLines(p pane, iw, inner int, active bool) []string {
 	avail := max(0, iw-2)
 	type column struct {
@@ -215,7 +246,7 @@ func (app App) instanceLines(p pane, iw, inner int, active bool) []string {
 	items := filterInstances(p.items, p.filter)
 	cols := []column{
 		{"NAMESPACE", 12, func(i int) string { return items[i].Namespace }},
-		{"VERSION", 7, func(i int) string { return items[i].Version }},
+		{"VER", 4, func(i int) string { return items[i].Version }},
 		{"PHASE", 7, func(i int) string { return items[i].Phase }},
 	}
 	used := func() int {
@@ -225,7 +256,7 @@ func (app App) instanceLines(p pane, iw, inner int, active bool) []string {
 		}
 		return n
 	}
-	for _, drop := range []string{"NAMESPACE", "PHASE", "VERSION"} {
+	for _, drop := range []string{"NAMESPACE", "PHASE", "VER"} {
 		if avail-used() >= 14 {
 			break
 		}
