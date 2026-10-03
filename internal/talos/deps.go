@@ -174,3 +174,87 @@ func (c *Client) Dependencies(ctx context.Context, node string) (DepGraph, error
 	}
 	return ParseDepDOT(data)
 }
+
+// Stage is one column of a resource pipeline: the types at one distance from
+// the selected type, plus the controllers on the connector that leaves the
+// stage to the right (the ones that turn these types into the next stage's).
+type Stage struct {
+	Controllers []string
+	Types       []string
+}
+
+// Pipeline walks the graph from typ: up to `up` producer hops to the left and
+// `down` consumer hops to the right. The result is ordered left to right and
+// always holds the stage of typ itself. keep, when set, limits which
+// controllers the walk may pass through (nil keeps all). A type appears in one
+// stage only (its nearest), so a controller that reads and writes the same
+// type does not loop.
+func (g DepGraph) Pipeline(typ string, up, down int, keep func(controller string) bool) []Stage {
+	seen := map[string]bool{typ: true}
+	step := func(cur []string, from func(string) []string, next func(string) []DepEdge) (types, ctrls []string) {
+		cs := map[string]bool{}
+		for _, t := range cur {
+			for _, c := range from(t) {
+				if keep == nil || keep(c) {
+					cs[c] = true
+				}
+			}
+		}
+		ctrls = sortedKeys(cs)
+		ts := map[string]bool{}
+		for _, c := range ctrls {
+			for _, e := range next(c) {
+				if !seen[e.Type] {
+					ts[e.Type] = true
+				}
+			}
+		}
+		types = sortedKeys(ts)
+		for _, t := range types {
+			seen[t] = true
+		}
+		return types, ctrls
+	}
+
+	var left []Stage // nearest first
+	cur := []string{typ}
+	for i := 0; i < up; i++ {
+		types, ctrls := step(cur, g.Producers, g.Inputs)
+		if len(types) == 0 {
+			break
+		}
+		left = append(left, Stage{Controllers: ctrls, Types: types})
+		cur = types
+	}
+
+	var out []Stage
+	for i := len(left) - 1; i >= 0; i-- {
+		out = append(out, left[i])
+	}
+	center := Stage{Types: []string{typ}}
+	out = append(out, center)
+	centerIdx := len(out) - 1
+
+	cur = []string{typ}
+	prev := centerIdx
+	for i := 0; i < down; i++ {
+		types, ctrls := step(cur, g.Consumers, g.Outputs)
+		if len(types) == 0 {
+			break
+		}
+		out[prev].Controllers = ctrls
+		out = append(out, Stage{Types: types})
+		prev = len(out) - 1
+		cur = types
+	}
+	return out
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	inspectapi "github.com/siderolabs/talos/pkg/machinery/api/inspect"
@@ -141,5 +142,66 @@ func TestParseResourceListOwner(t *testing.T) {
 	}
 	if got[0].Owner != "network.LinkStatusController" {
 		t.Errorf("Owner = %q", got[0].Owner)
+	}
+}
+
+func pipelineGraph() DepGraph {
+	in := func(c, t string) DepEdge { return DepEdge{Controller: c, Type: t} }
+	out := func(c, t string) DepEdge { return DepEdge{Controller: c, Type: t, Output: true} }
+	return DepGraph{Edges: []DepEdge{
+		in("network.LinkConfigController", "MachineConfigs.config.talos.dev"),
+		out("network.LinkConfigController", "LinkSpecs.net.talos.dev"),
+		in("network.LinkSpecController", "LinkSpecs.net.talos.dev"),
+		out("network.LinkSpecController", "LinkStatuses.net.talos.dev"),
+		in("network.LinkSpecController", "LinkStatuses.net.talos.dev"), // reads what it writes: must not loop
+		in("network.AddressController", "LinkStatuses.net.talos.dev"),
+		out("network.AddressController", "AddressStatuses.net.talos.dev"),
+		in("k8s.Other", "AddressStatuses.net.talos.dev"),
+		out("k8s.Other", "NodeAddresses.net.talos.dev"),
+		in("k8s.Other", "MachineConfigs.config.talos.dev"),
+	}}
+}
+
+func TestPipelineWalksBothDirections(t *testing.T) {
+	st := pipelineGraph().Pipeline("LinkSpecs.net.talos.dev", 3, 3, nil)
+	var types [][]string
+	for _, s := range st {
+		types = append(types, s.Types)
+	}
+	want := [][]string{
+		{"MachineConfigs.config.talos.dev"},
+		{"LinkSpecs.net.talos.dev"},
+		{"LinkStatuses.net.talos.dev"},
+		{"AddressStatuses.net.talos.dev"},
+		{"NodeAddresses.net.talos.dev"},
+	}
+	if !reflect.DeepEqual(types, want) {
+		t.Fatalf("stages = %v, want %v", types, want)
+	}
+	if got := st[0].Controllers; !reflect.DeepEqual(got, []string{"network.LinkConfigController"}) {
+		t.Errorf("connector 0 = %v", got)
+	}
+	if got := st[1].Controllers; !reflect.DeepEqual(got, []string{"network.LinkSpecController"}) {
+		t.Errorf("connector 1 = %v", got)
+	}
+	if len(st[4].Controllers) != 0 {
+		t.Errorf("last stage has connector %v", st[4].Controllers)
+	}
+}
+
+func TestPipelineHopLimitsAndFilter(t *testing.T) {
+	g := pipelineGraph()
+	st := g.Pipeline("LinkSpecs.net.talos.dev", 0, 1, nil)
+	if len(st) != 2 || st[1].Types[0] != "LinkStatuses.net.talos.dev" {
+		t.Errorf("0 up / 1 down = %+v", st)
+	}
+	// from the machine config, the filter keeps only network controllers
+	st = g.Pipeline("MachineConfigs.config.talos.dev", 0, 1, func(c string) bool { return strings.HasPrefix(c, "network.") })
+	if len(st) != 2 || !reflect.DeepEqual(st[1].Types, []string{"LinkSpecs.net.talos.dev"}) {
+		t.Errorf("filtered = %+v", st)
+	}
+	// a type the graph does not know is a single stage
+	if st := g.Pipeline("Nope.net.talos.dev", 3, 3, nil); len(st) != 1 {
+		t.Errorf("unknown type = %+v", st)
 	}
 }
