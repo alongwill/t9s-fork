@@ -63,7 +63,7 @@ func buildHelpContent() string {
 		{":", "Command mode (:nodes :net :netview :addr :aliases :q :help)"},
 		{"A", "Network addresses"},
 		{"N", "Network view (tree from the NIC up, HTML diagram)"},
-		{"i", "Disks"},
+		{"i", "Disks: partition bars per disk"},
 		{"H", "Cluster health"},
 		{"R", "Reboot node"},
 		{"S", "Shutdown node"},
@@ -204,6 +204,7 @@ func browserHelp(section func(string, [][2]string) string) string {
 		{paneDescribe, "Resource Browser: describe pane"},
 		{paneRelated, "Resource Browser: related view (p)"},
 		{paneNetwork, "Resource Browser: network view (N, n)"},
+		{paneDisks, "Resource Browser: disk view (i)"},
 		{paneCompare, "Resource Browser: compare nodes (c)"},
 		{paneDiff, "Resource Browser: diff pane"},
 	}

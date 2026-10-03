@@ -1,6 +1,6 @@
 # Design: graphical disk view
 
-Status: agreed, 2026-10-03. Not started. Replaces the body of the existing t9s Disks view (`i` on a node).
+Status: implemented on `feat/disk-view` (see "As built" at the end). Replaces the body of the existing t9s Disks view (`i` on a node).
 
 ## Goal
 
@@ -97,3 +97,15 @@ filesystem), 1 day rendering + keys, 0.5 day docs and render tests.
 2. **LVM / RAID later.** First version shows dm/md devices only as a line under their parent disk.
 
 Queued after learning PR D.
+
+## As built
+
+- Model in `internal/diskmodel`, view in `internal/ui/diskview*.go`, a `paneDisks` on the browser stack (like the
+  network view), so `StateDisks`, `disks.go`, `GetDisks` and `GetVolumeStatus` are removed. `i` and `:disks` open it.
+- All block resources are read through the `ResourceSource` (gRPC or CLI), namespace `runtime`.
+- **Usage is not a resource.** The design said "existing `GetVolumeStatus`", but that never carried usage. Usage
+  comes from the `mounts` table (`Client.GetMounts`, one subprocess call, decimal GB with two decimals), matched to a
+  volume by `VolumeStatus.mountLocation` (else `mountSpec.targetPath`). v1.15 `diskfree` is not used yet.
+- Not verified against a real node: the exact `mountLocation` values, `secondary_disks` format on device-mapper
+  disks, and the `type` of a device-mapper `DiscoveredVolume`. The fixtures are hand-written.
+- Not built: LVM / RAID mapping beyond the `↳` line (as decided), `diskfree`.

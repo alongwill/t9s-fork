@@ -52,6 +52,9 @@ func browserActionsFor(kind paneKind) []keyAction {
 	if kind == paneNetwork {
 		return networkActions()
 	}
+	if kind == paneDisks {
+		return diskActions()
+	}
 	as := []keyAction{
 		{keys: []string{"up", "k"}, label: "↑↓", desc: "Navigate", visible: true, fn: moveAction(-1)},
 		{keys: []string{"down", "j"}, desc: "Move down", fn: moveAction(1)},
@@ -174,9 +177,11 @@ type browserKey struct {
 // browserKeyTable lists every pane-specific browser key. A test checks it
 // against browserActionsFor so it cannot drift from the real bindings.
 var browserKeyTable = []browserKey{
-	{"d", []paneKind{paneTypes, paneInstances, paneDescribe, paneNetwork}, "a type or instance list, or the network view", "open a category first"},
+	{"d", []paneKind{paneTypes, paneInstances, paneDescribe, paneNetwork, paneDisks}, "a type or instance list, the network view or the disk view", "open a category first"},
 	{"y", []paneKind{paneInstances, paneDescribe}, "an instance list", "Enter on a type first"},
 	{"c", []paneKind{paneTypes, paneInstances, paneYAML, paneRelated, paneNetwork}, "a type, an instance list, a YAML pane, the related table or the network view", "open a category first"},
+	{"a", []paneKind{paneDisks}, "the disk view", "press i on the node list"},
+	{"u", []paneKind{paneDisks}, "the disk view", "press i on the node list"},
 	{"o", []paneKind{paneNetwork}, "the network view", "press N on the node list, or n in the Networking category"},
 	{"W", []paneKind{paneTypes, paneInstances, paneYAML, paneDescribe}, "an instance list (gRPC source)", "Enter on a type first"},
 	{"w", []paneKind{paneYAML}, "the YAML pane", "open an instance first"},
@@ -683,6 +688,8 @@ func (app App) browserReload() (App, tea.Cmd) {
 		return app.reloadRelated()
 	case paneNetwork:
 		return app.reloadNetwork()
+	case paneDisks:
+		return app.reloadDisks()
 	case paneCompare:
 		return app.reloadCompare()
 	case paneAliases:

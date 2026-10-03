@@ -45,16 +45,6 @@ type catalogLoadedMsg struct {
 	err     error
 }
 
-type disksLoadedMsg struct {
-	disks []talos.DiskInfo
-	err   error
-}
-
-type volumesLoadedMsg struct {
-	volumes []talos.VolumeInfo
-	err     error
-}
-
 type processesLoadedMsg struct {
 	processes []talos.ProcessInfo
 	err       error

@@ -32,7 +32,6 @@ const (
 	StateUpgradeTalos
 	StateUpgradeK8s
 	StateContextSwitcher
-	StateDisks
 	StateProcesses
 	StateContainers
 	StateAddresses
@@ -165,9 +164,6 @@ type App struct {
 	searchActive bool
 
 	// Disks
-	disks       []talos.DiskInfo
-	diskLoading bool
-	volumes     []talos.VolumeInfo // loaded alongside disks
 
 	// Processes
 	processes   []talos.ProcessInfo
@@ -362,6 +358,9 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case depsMsg:
 		return app.handleDeps(msg).afterDeps()
+
+	case diskFetchMsg:
+		return app.handleDiskFetch(msg), nil
 
 	case netHTMLMsg:
 		return app.handleNetHTML(msg), nil
@@ -579,22 +578,6 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			app.catalog = msg.catalog
 			app.catalogCur = 0
 			app.statusMsg = fmt.Sprintf("%d extensions available", len(msg.catalog))
-		}
-		return app, nil
-
-	case disksLoadedMsg:
-		app.diskLoading = false
-		if msg.err != nil {
-			app.statusMsg = errStyle.Render("Error: " + msg.err.Error())
-		} else {
-			app.disks = msg.disks
-			app.statusMsg = fmt.Sprintf("%d disks", len(msg.disks))
-		}
-		return app, nil
-
-	case volumesLoadedMsg:
-		if msg.err == nil {
-			app.volumes = msg.volumes
 		}
 		return app, nil
 
@@ -918,10 +901,6 @@ func resourceLine(app App) string {
 		}
 	case StateExtCatalog:
 		return fmt.Sprintf("Extension Catalog › %s (%d available)", app.catalogVersion, len(app.catalog))
-	case StateDisks:
-		if app.selNode != nil {
-			return fmt.Sprintf("Disks › %s", app.selNode.Hostname)
-		}
 	case StateProcesses:
 		if app.selNode != nil {
 			return fmt.Sprintf("Processes › %s (%d)", app.selNode.Hostname, len(app.processes))
@@ -980,8 +959,6 @@ func viewTitle(s AppState) string {
 		return "[ Extensions ]"
 	case StateExtCatalog:
 		return "[ Ext Catalog ]"
-	case StateDisks:
-		return "[ Disks ]"
 	case StateProcesses:
 		return "[ Processes ]"
 	case StateContainers:
@@ -1060,8 +1037,6 @@ func (app App) renderMain(height int) string {
 		return app.renderExtensions(height)
 	case StateExtCatalog:
 		return app.renderExtCatalog(height)
-	case StateDisks:
-		return app.renderDisks(height)
 	case StateProcesses:
 		return app.renderProcesses(height)
 	case StateContainers:
@@ -1152,28 +1127,6 @@ func (app App) loadCatalog() tea.Cmd {
 		defer cancel()
 		catalog, err := client.GetExtensionCatalog(ctx, version)
 		return catalogLoadedMsg{catalog: catalog, err: err}
-	}
-}
-
-func (app App) loadDisks() tea.Cmd {
-	client := app.client
-	node := app.selNode.IP
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		disks, err := client.GetDisks(ctx, node)
-		return disksLoadedMsg{disks: disks, err: err}
-	}
-}
-
-func (app App) loadVolumes() tea.Cmd {
-	client := app.client
-	node := app.selNode.IP
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		vols, err := client.GetVolumeStatus(ctx, node)
-		return volumesLoadedMsg{volumes: vols, err: err}
 	}
 }
 

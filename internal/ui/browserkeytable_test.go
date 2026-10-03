@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var allPaneKinds = []paneKind{paneCategories, paneTypes, paneInstances, paneYAML, paneDescribe, paneAliases, paneCompare, paneDiff, paneRelated, paneNetwork}
+var allPaneKinds = []paneKind{paneCategories, paneTypes, paneInstances, paneYAML, paneDescribe, paneAliases, paneCompare, paneDiff, paneRelated, paneNetwork, paneDisks}
 
 func boundIn(key string, kind paneKind) bool {
 	for _, a := range browserActionsFor(kind) {
@@ -31,7 +31,7 @@ func appWithTop(kind paneKind) App {
 	switch kind {
 	case paneInstances:
 		app.browser = app.browser.pop()
-	case paneDescribe, paneAliases, paneCompare, paneDiff, paneRelated, paneNetwork:
+	case paneDescribe, paneAliases, paneCompare, paneDiff, paneRelated, paneNetwork, paneDisks:
 		app.browser = app.browser.push(pane{kind: kind, title: "x"})
 	}
 	return app.syncBrowserState()

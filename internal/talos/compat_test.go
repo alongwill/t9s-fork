@@ -80,27 +80,6 @@ func TestUpgradeArgs(t *testing.T) {
 	}
 }
 
-func TestDiskType(t *testing.T) {
-	cases := []struct {
-		transport         string
-		rotational, cdrom bool
-		want              string
-	}{
-		{"nvme", false, false, "NVME"},
-		{"sata", true, false, "HDD"},
-		{"sata", false, false, "SSD"},
-		{"virtio", true, false, "VIRTIO"},
-		{"usb", false, false, "USB"},
-		{"sata", false, true, "CD"},
-		{"", false, false, ""},
-	}
-	for _, c := range cases {
-		if got := diskType(c.transport, c.rotational, c.cdrom); got != c.want {
-			t.Errorf("diskType(%q,%v,%v) = %q, want %q", c.transport, c.rotational, c.cdrom, got, c.want)
-		}
-	}
-}
-
 func TestMachineStatusNodeStatus(t *testing.T) {
 	cases := []struct {
 		ms   MachineStatus

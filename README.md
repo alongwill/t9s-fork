@@ -121,7 +121,7 @@ Talos 1.14 specifics handled by t9s:
 | Extensions | `talosctl get extensions -o json` | 1.3 |
 | K8s version | `talosctl get kubeletstatus -o json`, fallback `get kubeletspec` | 1.14 / 1.3 |
 | Node stage / readiness | `talosctl get machinestatus -o json` | 1.2 |
-| Disks | `talosctl get disks -o json` + `get volumestatus -o json` | **1.8** |
+| Disks | resources `Disks`, `SystemDisks`, `DiscoveredVolumes`, `VolumeStatuses` (gRPC or CLI source) plus the `mounts` table for usage | **1.8** |
 | Processes | `talosctl processes` | 1.0 |
 | Containers | `talosctl containers` (`--namespace cri` on 1.14, `-k` before) | 1.0 |
 | Stats | `talosctl stats` | 1.0 |
@@ -174,7 +174,7 @@ t9s uses aliases to navigate most Talos resources — hit `?` at any time for th
 | <kbd>Enter</kbd> / <kbd>c</kbd> | Containers | | <kbd>p</kbd> | Processes |
 | <kbd>s</kbd> | Services | | <kbd>l</kbd> | Log Streams |
 | <kbd>e</kbd> | Extensions | | <kbd>a</kbd> | Resource browser |
-| <kbd>C</kbd> | Extension catalog | | <kbd>i</kbd> | Disks |
+| <kbd>C</kbd> | Extension catalog | | <kbd>i</kbd> | Disk view: partition bars |
 | <kbd>m</kbd> | Machine config | | <kbd>d</kbd> | Dmesg |
 | <kbd>H</kbd> | Cluster health | | <kbd>R</kbd> / <kbd>S</kbd> | Reboot / Shutdown |
 | <kbd>U</kbd> | Upgrade Talos | | <kbd>K</kbd> | Upgrade Kubernetes |
@@ -256,6 +256,10 @@ The browser tries to answer four questions without leaving t9s: what is this res
   - Keys: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>h</kbd>/<kbd>l</kbd> (or <kbd>←</kbd>/<kbd>→</kbd>) fold and unfold (<kbd>h</kbd> on a leaf goes to its parent), <kbd>g</kbd>/<kbd>G</kbd> top / bottom, <kbd>Enter</kbd> opens the YAML of the row's status resource (a warning opens its document), <kbd>d</kbd> describe, <kbd>p</kbd> related view, <kbd>c</kbd> jumps to the config document that made the row (press again when several documents name the same link), <kbd>o</kbd> opens the HTML diagram, <kbd>Ctrl</kbd>+<kbd>R</kbd> reloads, <kbd>Esc</kbd>/<kbd>q</kbd> goes back. Every jump returns here with <kbd>Esc</kbd>. A key that does not apply says why in the status line (for example `c` on a DHCP address: it came from DHCP, no document asked for it).
   - Config documents are matched to links by `name` (`LinkConfig`, `BondConfig`, `BridgeConfig`, `VLANConfig`, `DHCPv4Config`, …), VIP documents by their `link:` field, VLANs also by parent and VLAN ID, and the legacy `v1alpha1` document by `machine.network.interfaces[].interface`. Reading them needs `os:admin`; without it the tree still shows everything else.
   - **HTML stack diagram (<kbd>o</kbd>).** Writes one self-contained page to `$TMPDIR/t9s-network-<hostname>-<timestamp>.html` and opens it (`open` on macOS, `xdg-open` on Linux; the path is in the status line either way). Layers run bottom to top: physical NICs, logical links, addresses, routes and services (VIPs, KubeSpan, node address). Config documents sit in a column on the left with dashed lines to what they made; solid lines are "built on" and "attached to". Click anything for its fields, the document that made it, the Talos `type / id` to find it in t9s, and the notes (what it is, on Ubuntu). It follows the system light / dark setting and loads Cytoscape.js from cdnjs, so it needs network access. To see one without a cluster: `go run ./hack/netview-example -fixture bond-vlan-vip -open` (an example is in `docs/design/examples/`).
+
+- **Disk view (<kbd>i</kbd> on the node list, `:disks` / `:dk`)** draws every disk of the node as a horizontal bar split into its partitions, sized in proportion (a segment is never narrower than 3 cells, so 1 MiB partitions such as BIOS and META stay visible). Colours: system partitions (EFI, BIOS, BOOT, META, STATE) are slate shades, EPHEMERAL green, IMAGECACHE teal, user (`u-*`) and existing (`e-*`) volumes one colour per name, raw volumes and swap orange, LVM and RAID members purple, a failed or missing volume red, anything else grey. Inside a segment `▓` is used space, `░` free space and `█` means usage is unknown; `·` is unallocated space (gaps over 1 MiB). The label sits on a chip when it fits: name, filesystem, `lock` for an encrypted volume, percent used. A `★ system` badge marks the install disk; a disk Talos does not use shows `not used by Talos`; device-mapper and md devices appear as a `↳` line under their disk; a volume waiting for space (`u-scratch waiting: …`) is listed in red under the disk it wants. Below the bars a table describes the selected segment (`#`, label, volume, filesystem, size, offset, mount, used, phase, encryption) with a one-line note on what that partition is (EPHEMERAL, STATE, META, …, with the Ubuntu equivalent) or the volume's error.
+  - Keys: <kbd>↑</kbd><kbd>↓</kbd> / <kbd>j</kbd><kbd>k</kbd> disk, <kbd>←</kbd><kbd>→</kbd> / <kbd>h</kbd><kbd>l</kbd> partition, <kbd>g</kbd>/<kbd>G</kbd> first / last disk, <kbd>Enter</kbd> YAML of the `VolumeStatus` (else the `DiscoveredVolume`; unallocated space and unused disks open the `Disk`), <kbd>d</kbd> describe, <kbd>p</kbd> related view, <kbd>a</kbd> show every device (loop, cdrom and read-only devices are hidden), <kbd>u</kbd> GiB / GB, <kbd>Ctrl</kbd>+<kbd>R</kbd> reload, <kbd>Esc</kbd>/<kbd>q</kbd> back. Jumps return here with <kbd>Esc</kbd>. Under 80 columns the size line is dropped.
+  - Usage comes from the `mounts` table (one extra subprocess call, decimal gigabytes with two decimals, so approximate) and is matched to a volume by its mount point. When it cannot be read the summary says `usage unavailable` and the bars show no used / free split.
 
 The notes are written from the Talos source and skill references. The source of truth is `knowledge/resource-notes.yaml` in the Talos skill (`agent-skills/talos`); `internal/catalog/resource-notes.yaml` is a generated copy. Edit the skill file, then run `hack/sync-resource-notes.sh` (`--check` fails when the copy is stale). Types without a note still show their definition fields and relationships.
 
@@ -351,7 +355,7 @@ A rounded box with the container ID, pod namespace / pod / container (parsed fro
 | Resources | <kbd>a</kbd> | Resource browser: categories, types, instances, YAML |
 | Addresses | <kbd>A</kbd> | Network interfaces and addresses |
 | Network view | <kbd>N</kbd> | Links, addresses and routes as a tree from the NIC up; HTML stack diagram with <kbd>o</kbd> |
-| Disks | <kbd>i</kbd> | Block devices — model, serial, type, size |
+| Disks | <kbd>i</kbd> | Every disk as a bar split into partitions, coloured by what Talos uses each for (see [Learning Talos with t9s](#learning-talos-with-t9s)) |
 | Health | <kbd>H</kbd> | Cluster health checks (streaming) |
 | Upgrade Talos | <kbd>U</kbd> | Upgrade with pre-filled installer image |
 | Upgrade K8s | <kbd>K</kbd> | Upgrade with pre-filled version |
@@ -366,7 +370,7 @@ t9s/
 ├── internal/
 │   ├── config/config.go      # Talosconfig loader
 │   ├── talos/
-│   │   ├── types.go          # Data types (Node, Service, DiskInfo…)
+│   │   ├── types.go          # Data types (Node, Service, ContainerInfo…)
 │   │   └── client.go         # talosctl subprocess wrappers
 │   └── ui/
 │       ├── app.go            # bubbletea Model: Init / Update / View

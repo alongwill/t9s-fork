@@ -83,6 +83,8 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 		body = app.relatedLines(p, iw, inner, active)
 	case paneNetwork:
 		body = app.networkLines(p, iw, inner, active)
+	case paneDisks:
+		body = app.disksLines(p, iw, inner, active)
 	}
 
 	lines := make([]string, 0, h)
@@ -117,7 +119,7 @@ func (app App) paneTitle(p pane) string {
 			return p.title + "  " + p.legend
 		}
 		return p.title + "  (- browser node, + other)"
-	case paneRelated, paneNetwork:
+	case paneRelated, paneNetwork, paneDisks:
 		return p.title
 	case paneInstances:
 		if p.loading {

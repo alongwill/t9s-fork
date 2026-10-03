@@ -58,6 +58,8 @@ func (app App) nextStep() string {
 		parts = app.relatedNextStep(p)
 	case paneNetwork:
 		parts = app.networkNextStep(p)
+	case paneDisks:
+		parts = app.disksNextStep(p)
 	}
 	return strings.Join(parts, " · ")
 }

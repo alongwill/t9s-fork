@@ -106,8 +106,6 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app.handleExtensionsKey(msg)
 	case StateExtCatalog:
 		return app.handleExtCatalogKey(msg)
-	case StateDisks:
-		return app.handleDisksKey(msg)
 	case StateProcesses:
 		return app.handleProcessesKey(msg)
 	case StateContainers:

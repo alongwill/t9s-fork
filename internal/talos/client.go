@@ -499,72 +499,6 @@ func (c *Client) Shutdown(ctx context.Context, node string) error {
 	return err
 }
 
-// --- Disks ---
-
-type diskEnvelope struct {
-	Metadata struct {
-		ID string `json:"id"`
-	} `json:"metadata"`
-	Spec struct {
-		DevPath    string `json:"dev_path"`
-		Model      string `json:"model"`
-		Serial     string `json:"serial"`
-		Size       uint64 `json:"size"`
-		Transport  string `json:"transport"`
-		Rotational bool   `json:"rotational"`
-		CDROM      bool   `json:"cdrom"`
-	} `json:"spec"`
-}
-
-func (c *Client) GetDisks(ctx context.Context, node string) ([]DiskInfo, error) {
-	data, err := c.run(ctx, "get", "disks", "-n", node, "-o", "json")
-	if err != nil {
-		return nil, err
-	}
-	envs, err := parseJSONStream[diskEnvelope](data)
-	if err != nil {
-		return nil, err
-	}
-	var result []DiskInfo
-	for _, e := range envs {
-		if e.Metadata.ID == "" {
-			continue
-		}
-		dev := e.Spec.DevPath
-		if dev == "" {
-			dev = "/dev/" + e.Metadata.ID
-		}
-		result = append(result, DiskInfo{
-			Dev:    dev,
-			Model:  e.Spec.Model,
-			Serial: e.Spec.Serial,
-			Type:   diskType(e.Spec.Transport, e.Spec.Rotational, e.Spec.CDROM),
-			Size:   FormatBytes(e.Spec.Size),
-		})
-	}
-	return result, nil
-}
-
-// diskType derives a short media type; the Disk resource has no "type" field.
-func diskType(transport string, rotational, cdrom bool) string {
-	switch {
-	case cdrom:
-		return "CD"
-	case transport == "nvme":
-		return "NVME"
-	case transport == "usb":
-		return "USB"
-	case transport == "virtio":
-		return "VIRTIO"
-	case rotational:
-		return "HDD"
-	case transport == "":
-		return ""
-	default:
-		return "SSD"
-	}
-}
-
 // FormatBytes converts a byte count to a compact human-readable string.
 func FormatBytes(b uint64) string {
 	const unit = 1000
@@ -812,47 +746,46 @@ func (c *Client) runStreaming(ctx context.Context, ch chan<- string, args ...str
 
 // --- Volume status ---
 
-type volumeEnvelope struct {
-	Metadata struct {
-		ID string `json:"id"`
-	} `json:"metadata"`
-	Spec struct {
-		Type           string `json:"type"`
-		Phase          string `json:"phase"`
-		ParentLocation string `json:"parentLocation"` // e.g. "/dev/vda"
-		MountSpec      struct {
-			TargetPath string `json:"targetPath"`
-		} `json:"mountSpec"`
-		Filesystem string `json:"filesystem"`
-		Size       uint64 `json:"size"`
-	} `json:"spec"`
+// MountUsage is one row of the mounts table: used and free space of a mounted filesystem.
+type MountUsage struct {
+	Filesystem string
+	MountedOn  string
+	Size       uint64 // bytes
+	Used       uint64
+	Avail      uint64
 }
 
-func (c *Client) GetVolumeStatus(ctx context.Context, node string) ([]VolumeInfo, error) {
-	data, err := c.run(ctx, "get", "volumestatus", "-n", node, "-o", "json")
+// GetMounts reads the filesystem usage of a node from the mounts table
+// (NODE FILESYSTEM SIZE(GB) USED(GB) AVAILABLE(GB) PERCENT USED MOUNTED ON).
+// Sizes are decimal gigabytes with two decimals, so they are approximate.
+func (c *Client) GetMounts(ctx context.Context, node string) ([]MountUsage, error) {
+	data, err := c.run(ctx, "mounts", "-n", node)
 	if err != nil {
 		return nil, err
 	}
-	envs, err := parseJSONStream[volumeEnvelope](data)
-	if err != nil {
-		return nil, err
-	}
-	var result []VolumeInfo
-	for _, e := range envs {
-		if e.Spec.Type != "partition" || e.Spec.Size == 0 {
+	return ParseMounts(string(data)), nil
+}
+
+// ParseMounts parses the mounts table. Rows it cannot read are skipped.
+func ParseMounts(out string) []MountUsage {
+	var res []MountUsage
+	for _, line := range strings.Split(out, "\n") {
+		f := strings.Fields(line)
+		if len(f) < 7 || f[0] == "NODE" {
 			continue
 		}
-		diskID := strings.TrimPrefix(e.Spec.ParentLocation, "/dev/")
-		result = append(result, VolumeInfo{
-			ID:     e.Metadata.ID,
-			DiskID: diskID,
-			Mount:  e.Spec.MountSpec.TargetPath,
-			FS:     e.Spec.Filesystem,
-			Size:   e.Spec.Size,
-			Phase:  e.Spec.Phase,
+		size, e1 := strconv.ParseFloat(f[2], 64)
+		used, e2 := strconv.ParseFloat(f[3], 64)
+		avail, e3 := strconv.ParseFloat(f[4], 64)
+		if e1 != nil || e2 != nil || e3 != nil {
+			continue
+		}
+		res = append(res, MountUsage{
+			Filesystem: f[1], MountedOn: strings.Join(f[6:], " "),
+			Size: uint64(size * 1e9), Used: uint64(used * 1e9), Avail: uint64(avail * 1e9),
 		})
 	}
-	return result, nil
+	return res
 }
 
 // --- Machine config ---

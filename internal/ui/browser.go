@@ -32,6 +32,7 @@ const (
 	paneDiff    // enter on a compare row: unified diff
 	paneRelated // p: pipeline and family of a type
 	paneNetwork // N / n: the node's network as a tree
+	paneDisks   // i: the node's disks as partition bars
 )
 
 // Count sentinels in browser.counts (missing key = not loaded yet).
@@ -60,6 +61,7 @@ type pane struct {
 	side     bool                 // paneDiff: side by side instead of unified
 	rel      relatedView          // paneRelated
 	net      netView              // paneNetwork
+	disk     diskView             // paneDisks
 	loading  bool
 	err      string
 }
@@ -353,7 +355,7 @@ func (app App) browserLayout() []paneBox {
 	if n == 0 {
 		return nil
 	}
-	if k := st[n-1].kind; k == paneAliases || k == paneCompare || k == paneDiff || k == paneRelated || k == paneNetwork { // whole width
+	if k := st[n-1].kind; k == paneAliases || k == paneCompare || k == paneDiff || k == paneRelated || k == paneNetwork || k == paneDisks { // whole width
 		return []paneBox{{n - 1, app.width}}
 	}
 	if app.browser.fullscreen && st[n-1].kind == paneYAML {
@@ -365,7 +367,7 @@ func (app App) browserLayout() []paneBox {
 	}
 	first := max(0, n-maxPanes)
 	for i := n - 2; i >= 0; i-- { // a related view is whole-width: never show it beside another pane
-		if st[i].kind == paneRelated || st[i].kind == paneNetwork {
+		if st[i].kind == paneRelated || st[i].kind == paneNetwork || st[i].kind == paneDisks {
 			first = max(first, i+1)
 			break
 		}
@@ -551,6 +553,8 @@ func (app App) crumbs() []crumb {
 			out = append(out, crumb{"related", ""})
 		case paneNetwork:
 			out = append(out, crumb{"network", "networking"})
+		case paneDisks:
+			out = append(out, crumb{"disks", "block"})
 		}
 	}
 	return out

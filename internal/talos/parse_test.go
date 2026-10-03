@@ -303,3 +303,22 @@ func stripLeadingV(s string) string {
 	}
 	return s
 }
+
+func TestParseMounts(t *testing.T) {
+	out := `NODE         FILESYSTEM       SIZE(GB)   USED(GB)   AVAILABLE(GB)   PERCENT USED   MOUNTED ON
+10.0.0.5     /dev/sda6        126.88     77.31      49.57           60.93%         /var
+10.0.0.5     /dev/sda5        0.10       0.01       0.09            12.00%         /system/state
+10.0.0.5     tmpfs            2.00       0.00       2.00            0.00%          /run
+garbage line
+`
+	got := ParseMounts(out)
+	if len(got) != 3 {
+		t.Fatalf("rows = %+v", got)
+	}
+	if got[0].MountedOn != "/var" || got[0].Filesystem != "/dev/sda6" || got[0].Used != 77310000000 || got[0].Avail != 49570000000 || got[0].Size != 126880000000 {
+		t.Errorf("row 0 = %+v", got[0])
+	}
+	if got[1].MountedOn != "/system/state" {
+		t.Errorf("row 1 = %+v", got[1])
+	}
+}

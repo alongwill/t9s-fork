@@ -96,12 +96,6 @@ func stateHints(app App) []hint {
 			{"r", "Refresh"},
 			{"Esc/q", "Back"},
 		}
-	case StateDisks:
-		return []hint{
-			{"↑↓", "Navigate"},
-			{"r", "Refresh"},
-			{"Esc/q", "Back"},
-		}
 	case StateProcesses, StateAddresses:
 		return []hint{
 			{"↑↓", "Navigate"},

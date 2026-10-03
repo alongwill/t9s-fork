@@ -32,6 +32,8 @@ func (app App) paneAccent(p pane) lipgloss.TerminalColor {
 		return categoryAccent(catalog.CategoryFor(p.sub.def))
 	case paneNetwork:
 		return categoryAccent("networking")
+	case paneDisks:
+		return categoryAccent("block")
 	case paneRelated:
 		if p.rel.subject.config {
 			ck, _ := findConfigKind(p.rel.subject.kind)

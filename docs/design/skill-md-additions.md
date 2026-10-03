@@ -178,3 +178,15 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
 | Write a diagram for a fixture without a cluster | `hack/netview-example/main.go` |
 
 Notes for new network types go in the Talos skill's `knowledge/resource-notes.yaml` (e.g. `KubeSpanIdentity`), then `hack/sync-resource-notes.sh`.
+
+## Disk view (PR E): new rows
+
+| Need | File |
+|---|---|
+| Disk model: `Build` (disks, partitions by offset, unallocated gaps, volume join, mappers, roles), `Fetch`, fixtures | `internal/diskmodel/build.go`, `fetch.go`, `fixtures.go`, `model.go` |
+| Shared bulk read of resources (`FetchSteps`, semaphore) | `internal/netmodel/fetch.go` |
+| Mount usage: `Client.GetMounts`, `ParseMounts` | `internal/talos/client.go` |
+| Disk view pane (`paneDisks`; `i`, `:disks`): state, loading, selection, keys | `internal/ui/diskview.go` |
+| Disk view drawing: bar layout (`layoutWidths`), segment cells, role colours and notes, table | `internal/ui/diskviewrender.go` |
+
+The old `StateDisks` view (`disks.go`, `GetDisks`, `GetVolumeStatus`) is gone.

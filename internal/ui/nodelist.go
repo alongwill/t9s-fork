@@ -234,12 +234,7 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		if n == nil {
 			return app, nil
 		}
-		app.selNode = n
-		app.disks = nil
-		app.diskLoading = true
-		app = app.goTo(StateDisks)
-		app.volumes = nil
-		return app, tea.Batch(app.loadDisks(), app.loadVolumes())
+		return app.openDisksFromList(*n)
 
 	case "H":
 		app.selNode = app.selectedNode()

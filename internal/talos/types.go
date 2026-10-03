@@ -37,25 +37,6 @@ type CatalogExtension struct {
 	Description string
 }
 
-type DiskInfo struct {
-	Dev    string
-	Model  string
-	Serial string
-	Type   string
-	Size   string
-}
-
-// VolumeInfo holds filesystem-level usage for one Talos-managed volume.
-type VolumeInfo struct {
-	ID        string // Talos volume ID, e.g. "EPHEMERAL"
-	DiskID    string // device name, e.g. "sda"
-	Mount     string // mount point, e.g. "/var/mnt/ephemeral"
-	FS        string // filesystem type, e.g. "ext4"
-	Size      uint64 // total size in bytes
-	Available uint64 // available bytes
-	Phase     string // "ready", "failed", etc.
-}
-
 type ProcessInfo struct {
 	PID     string
 	State   string

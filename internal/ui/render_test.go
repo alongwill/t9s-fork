@@ -31,15 +31,6 @@ func makeProcesses(n int) []talos.ProcessInfo {
 	return p
 }
 
-func makeDisks() []talos.DiskInfo {
-	return []talos.DiskInfo{
-		// Long model name on purpose — must be truncated to colModel=20
-		{Dev: "sda", Type: "HDD", Model: "Samsung 870 EVO SATA III 2.5 Inch 1TB Internal SSD", Serial: "S3Z3NX0M123456", Size: "1.0TB"},
-		{Dev: "sdb", Type: "SSD", Model: "WD Blue", Serial: "WD-WX11A1234567890", Size: "500GB"},
-		{Dev: "sdc", Type: "NVMe", Model: "WD Black SN850X NVMe SSD 2TB", Serial: "234567WD0123456", Size: "2.0TB"},
-	}
-}
-
 func makeContainers(n int) []talos.ContainerInfo {
 	c := make([]talos.ContainerInfo, n)
 	for i := range c {
@@ -169,56 +160,6 @@ func TestRenderProcessesCursorVisibleWhenManyWrappedRowsAbove(t *testing.T) {
 	}
 	if got := lineCount(out); got > 17 {
 		t.Errorf("height budget exceeded: %d lines > 17", got)
-	}
-}
-
-// ── disks ─────────────────────────────────────────────────────────────────────
-
-func TestRenderDisksNoLineExceedsWidth(t *testing.T) {
-	for _, width := range []int{60, 80, 120, 200} {
-		width := width
-		t.Run(fmt.Sprintf("w%d", width), func(t *testing.T) {
-			app := newTestApp(width, 25)
-			app.disks = makeDisks()
-			out := app.renderDisks(22)
-			if got := maxLineWidth(out); got > width {
-				t.Errorf("a line is %d chars wide, terminal is only %d\n%s", got, width, out)
-			}
-		})
-	}
-}
-
-func TestRenderDisksCursorAlwaysVisible(t *testing.T) {
-	for _, cur := range []int{0, 1, 2} {
-		cur := cur
-		t.Run(fmt.Sprintf("cur%d", cur), func(t *testing.T) {
-			app := newTestApp(80, 25)
-			app.disks = makeDisks()
-			app.listScroll = cur
-			out := app.renderDisks(22)
-			if !strings.Contains(out, "▶") {
-				t.Errorf("▶ cursor not visible at cur=%d\n%s", cur, out)
-			}
-		})
-	}
-}
-
-// MODEL column must never exceed modelW (i.e. must always be truncated).
-func TestRenderDisksModelNeverOverflows(t *testing.T) {
-	for _, width := range []int{60, 80, 120} {
-		width := width
-		t.Run(fmt.Sprintf("w%d", width), func(t *testing.T) {
-			app := newTestApp(width, 25)
-			app.disks = makeDisks()
-			// wrapMode ON or OFF: model must always be truncated
-			for _, wrap := range []bool{false, true} {
-				app.wrapMode = wrap
-				out := app.renderDisks(22)
-				if got := maxLineWidth(out); got > width {
-					t.Errorf("wrap=%v: max line width %d > terminal width %d", wrap, got, width)
-				}
-			}
-		})
 	}
 }
 
