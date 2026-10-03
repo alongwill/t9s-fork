@@ -15,7 +15,7 @@ func TestSourceReadySetsSource(t *testing.T) {
 	app := newTestApp(120, 40)
 	app.talosCtx = "prod"
 	fs := newFakeSource("grpc")
-	app = app.handleSourceReady(sourceReadyMsg{ctx: "prod", src: fs})
+	app, _ = app.handleSourceReady(sourceReadyMsg{ctx: "prod", src: fs})
 	if app.source != fs || app.sourceName() != "grpc" || !app.hasWatch() {
 		t.Fatalf("source not installed: %v", app.source)
 	}
@@ -24,7 +24,7 @@ func TestSourceReadySetsSource(t *testing.T) {
 func TestSourceReadyFailureFallsBackToCLIWithStatus(t *testing.T) {
 	app := newTestApp(120, 40)
 	app.talosCtx = "prod"
-	app = app.handleSourceReady(sourceReadyMsg{ctx: "prod", err: errors.New("rpc error: code = Unavailable desc = connection refused\nsecond line")})
+	app, _ = app.handleSourceReady(sourceReadyMsg{ctx: "prod", err: errors.New("rpc error: code = Unavailable desc = connection refused\nsecond line")})
 	if app.source != nil || app.sourceName() != "cli" || app.hasWatch() {
 		t.Fatalf("expected CLI fallback, got %v", app.source)
 	}
@@ -37,7 +37,7 @@ func TestSourceReadyForOtherContextIsDropped(t *testing.T) {
 	app := newTestApp(120, 40)
 	app.talosCtx = "staging"
 	fs := newFakeSource("grpc")
-	app = app.handleSourceReady(sourceReadyMsg{ctx: "prod", src: fs})
+	app, _ = app.handleSourceReady(sourceReadyMsg{ctx: "prod", src: fs})
 	if app.source != nil || !fs.closed.Load() {
 		t.Fatal("stale connection must be closed and ignored")
 	}

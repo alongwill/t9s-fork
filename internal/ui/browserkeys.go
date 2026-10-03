@@ -369,7 +369,7 @@ func (app App) openBrowser(n talos.Node) (App, tea.Cmd) {
 	app, _ = app.useCachedConfig()
 	if defs, ok := app.resourceDefs[n.IP]; ok {
 		app.browser.defs = defs
-		return app, nil
+		return app.countAllTypes()
 	}
 	app.browser.defsLoading = true
 	app.statusMsg = "Loading resource definitions..."

@@ -59,22 +59,23 @@ func (app App) connectSource() tea.Cmd {
 	}
 }
 
-func (app App) handleSourceReady(msg sourceReadyMsg) App {
+func (app App) handleSourceReady(msg sourceReadyMsg) (App, tea.Cmd) {
 	if msg.ctx != app.talosCtx { // the user switched context while dialing
 		if msg.src != nil {
 			_ = msg.src.Close()
 		}
-		return app
+		return app, nil
 	}
 	if msg.err != nil {
 		app.statusMsg = warnStyle.Render(fmt.Sprintf("gRPC unavailable (%s), using CLI", shortReason(msg.err)))
-		return app
+		return app, nil
 	}
 	if app.source != nil {
 		_ = app.source.Close()
 	}
 	app.source = msg.src
-	return app
+	// A browser opened before the dial finished now counts everything.
+	return app.countAllTypes()
 }
 
 // resetSource drops the connection (context switch) and redials.

@@ -316,7 +316,7 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return app.handleKey(msg)
 
 	case sourceReadyMsg:
-		return app.handleSourceReady(msg), nil
+		return app.handleSourceReady(msg)
 
 	case resourceDefsMsg:
 		return app.handleResourceDefs(msg)

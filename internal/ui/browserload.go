@@ -64,6 +64,18 @@ func (app App) loadCounts(types []talos.ResourceDef) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// countAllTypes counts every type up front. Only the gRPC source does this:
+// one connection makes it cheap. The CLI source keeps the lazy per-category
+// counting (one subprocess per type).
+func (app App) countAllTypes() (App, tea.Cmd) {
+	if app.sourceName() != "grpc" || len(app.browser.stack) == 0 || len(app.browser.defs) == 0 {
+		return app, nil
+	}
+	cmd := app.loadCounts(app.browser.defs)
+	app.browser = app.browser.markCountsLoading(app.browser.defs)
+	return app, cmd
+}
+
 // markCountsLoading flags the types loadCounts will fetch, so rows show `…`.
 func (b browser) markCountsLoading(types []talos.ResourceDef) browser {
 	for _, d := range types {
@@ -124,13 +136,17 @@ func (app App) handleResourceDefs(msg resourceDefsMsg) (App, tea.Cmd) {
 	app.browser.defs = msg.defs
 	app.browser.defsErr = ""
 	app.statusMsg = ""
+	var countCmd tea.Cmd
+	app, countCmd = app.countAllTypes()
 	if app.browser.pendingCmd != "" {
-		return app.runPendingCommand()
+		a, cmd := app.runPendingCommand()
+		return a, tea.Batch(countCmd, cmd)
 	}
 	if app.hasPalette() { // the palette was opened before the definitions arrived
-		return app.paletteCounts()
+		a, cmd := app.paletteCounts()
+		return a, tea.Batch(countCmd, cmd)
 	}
-	return app, nil
+	return app, countCmd
 }
 
 func (app App) handleResourceCount(msg resourceCountMsg) App {
