@@ -179,7 +179,8 @@ t9s uses aliases to navigate most Talos resources — hit `?` at any time for th
 | <kbd>H</kbd> | Cluster health | | <kbd>R</kbd> / <kbd>S</kbd> | Reboot / Shutdown |
 | <kbd>U</kbd> | Upgrade Talos | | <kbd>K</kbd> | Upgrade Kubernetes |
 | <kbd>r</kbd> | Refresh | | <kbd>A</kbd> | Network addresses |
-| <kbd>Ctrl</kbd>+<kbd>A</kbd> | All-types palette for the selected node | | <kbd>:</kbd> | Command mode (`:nodes`, `:net`, `:addr`, `:q`, …) |
+| <kbd>Ctrl</kbd>+<kbd>A</kbd> | All-types palette for the selected node | | <kbd>:</kbd> | Command mode (`:nodes`, `:net`, `:netview`, `:addr`, `:q`, …) |
+| <kbd>N</kbd> | Network view: the node's network as a tree, plus an HTML diagram | | | |
 
 > **Changed:** <kbd>a</kbd> now opens the resource browser. The network addresses view moved to <kbd>A</kbd>.
 
@@ -195,6 +196,7 @@ The types pane has two sections. **CONFIG** lists the machine-config document ki
 | <kbd>:</kbd> | all, node list | Command mode (see below) |
 | <kbd>d</kbd> | types, instances | Describe the selected config kind or resource type; <kbd>d</kbd> again, <kbd>Esc</kbd> or <kbd>q</kbd> closes, <kbd>y</kbd> switches to YAML |
 | <kbd>p</kbd> | types, instances, YAML, describe | Related view: the pipeline and family of the selected type (see [Learning Talos with t9s](#learning-talos-with-t9s)) |
+| <kbd>n</kbd> | categories, types, instances | In the Networking category: open the network view (<kbd>n</kbd> is next match in the YAML pane) |
 | <kbd>J</kbd> | instances, YAML, describe | Jump to what the controller that wrote this instance reads: straight there if it reads one type, else the related view with those inputs highlighted |
 | <kbd>↑</kbd><kbd>↓</kbd> / <kbd>j</kbd><kbd>k</kbd> | all | Move / scroll |
 | <kbd>g</kbd> / <kbd>G</kbd>, <kbd>Home</kbd> / <kbd>End</kbd> | all | Top / bottom |
@@ -249,6 +251,11 @@ The browser tries to answer four questions without leaving t9s: what is this res
 - **Next-step line.** One dim line under the panes describes the selected row and the keys worth pressing next, for example `↵ 3 instances · d what is this · c compare (on an instance) · W watch (on an instance)`, or `not on this node · d what is this` on a greyed row. It is hidden below 20 terminal rows.
 - **Keys explain themselves.** A browser key pressed where it does not work says where it does, naming the selected type: `W works on an instance list: press Enter on LinkStatuses first`.
 - **Tips.** A short tip about the browser or a Talos concept shows in the status line when the browser opens and when a category opens, if nothing else is shown. `:tips off` silences them for the session.
+
+- **Network view (<kbd>N</kbd> on the node list, `:netview` / `:nv`, <kbd>n</kbd> in the Networking category)** shows how one node's network is built, from the physical NIC up: NIC → bond, bridge or VLAN → addresses → routes, with the config document that asked for each piece and the Talos resource behind it. It is a tree on the left and a detail pane on the right (below the tree under 100 columns). A bond hangs under its first member; its other members show a `↪` pointer. Colours: link dot green up, red down, grey unknown; physical NICs bold; bond purple, bridge orange, VLAN blue, WireGuard / KubeSpan yellow; address badges `static` (what you wrote), `dhcp4` / `dhcp6`, `vip`, `platform`, `cmdline`, `default`, `kernel` (no spec asked for it). A yellow `⚠` marks what the config names and the node does not have: a `LinkConfig` for a link that does not exist, a bond member or VLAN parent that is missing, a route that leaves through an unknown link, an address a spec asks for that the kernel lacks.
+  - Keys: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>h</kbd>/<kbd>l</kbd> (or <kbd>←</kbd>/<kbd>→</kbd>) fold and unfold (<kbd>h</kbd> on a leaf goes to its parent), <kbd>g</kbd>/<kbd>G</kbd> top / bottom, <kbd>Enter</kbd> opens the YAML of the row's status resource (a warning opens its document), <kbd>d</kbd> describe, <kbd>p</kbd> related view, <kbd>c</kbd> jumps to the config document that made the row (press again when several documents name the same link), <kbd>o</kbd> opens the HTML diagram, <kbd>Ctrl</kbd>+<kbd>R</kbd> reloads, <kbd>Esc</kbd>/<kbd>q</kbd> goes back. Every jump returns here with <kbd>Esc</kbd>. A key that does not apply says why in the status line (for example `c` on a DHCP address: it came from DHCP, no document asked for it).
+  - Config documents are matched to links by `name` (`LinkConfig`, `BondConfig`, `BridgeConfig`, `VLANConfig`, `DHCPv4Config`, …), VIP documents by their `link:` field, VLANs also by parent and VLAN ID, and the legacy `v1alpha1` document by `machine.network.interfaces[].interface`. Reading them needs `os:admin`; without it the tree still shows everything else.
+  - **HTML stack diagram (<kbd>o</kbd>).** Writes one self-contained page to `$TMPDIR/t9s-network-<hostname>-<timestamp>.html` and opens it (`open` on macOS, `xdg-open` on Linux; the path is in the status line either way). Layers run bottom to top: physical NICs, logical links, addresses, routes and services (VIPs, KubeSpan, node address). Config documents sit in a column on the left with dashed lines to what they made; solid lines are "built on" and "attached to". Click anything for its fields, the document that made it, the Talos `type / id` to find it in t9s, and the notes (what it is, on Ubuntu). It follows the system light / dark setting and loads Cytoscape.js from cdnjs, so it needs network access. To see one without a cluster: `go run ./hack/netview-example -fixture bond-vlan-vip -open` (an example is in `docs/design/examples/`).
 
 The notes are written from the Talos source and skill references. The source of truth is `knowledge/resource-notes.yaml` in the Talos skill (`agent-skills/talos`); `internal/catalog/resource-notes.yaml` is a generated copy. Edit the skill file, then run `hack/sync-resource-notes.sh` (`--check` fails when the copy is stale). Types without a note still show their definition fields and relationships.
 
@@ -343,6 +350,7 @@ A rounded box with the container ID, pod namespace / pod / container (parsed fro
 | Containers | <kbd>c</kbd> | containerd containers (system + k8s namespaces) |
 | Resources | <kbd>a</kbd> | Resource browser: categories, types, instances, YAML |
 | Addresses | <kbd>A</kbd> | Network interfaces and addresses |
+| Network view | <kbd>N</kbd> | Links, addresses and routes as a tree from the NIC up; HTML stack diagram with <kbd>o</kbd> |
 | Disks | <kbd>i</kbd> | Block devices — model, serial, type, size |
 | Health | <kbd>H</kbd> | Cluster health checks (streaming) |
 | Upgrade Talos | <kbd>U</kbd> | Upgrade with pre-filled installer image |

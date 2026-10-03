@@ -217,7 +217,8 @@ Four PRs turn the browser into a place to learn Talos. Plan for A: `docs/design/
 | A | Key feedback in every pane, next-step line, tips, knowledge notes (what / Ubuntu / look here), controller dependency graph, relationship-aware `d` describe | done |
 | B | Related view (`p`): pipeline boxes along the controller graph and an ID-joined family table with cell diff; `J` jump to the writer; notes sourced from the Talos skill; colour pass | done |
 | C | Symptom guides: start from "node has no network" or "disk missing" and walk the relevant resources | planned |
-| D | Network tree and an HTML stack diagram (links, addresses, routes, bonds, VLANs) | planned |
+| D | Network view (`N`): tree from the NIC up with config documents and resources, plus an HTML stack diagram (`o`) | done |
+| next | Graphical disk view (`docs/design/disk-view.md`) | planned |
 
 Open question 3 below (config documents to the resources they produce) is partly answered by A: describe on a
 config kind lists the controllers that read the machine config; B is where the document-to-resource link belongs.

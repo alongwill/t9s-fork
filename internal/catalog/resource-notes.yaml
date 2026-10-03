@@ -73,6 +73,10 @@ KubeSpanPeerStatus:
   what: "The WireGuard state of one KubeSpan peer, identified by its public key."
   ubuntu: "`wg show`"
   lookWhen: ["a node cannot reach another node over KubeSpan"]
+KubeSpanIdentity:
+  what: "This node's KubeSpan identity: its WireGuard public key, its address on the KubeSpan network and the subnet it routes."
+  ubuntu: "`wg show <iface> public-key`, `wg genkey`"
+  lookWhen: ["peers cannot find this node", "a node's KubeSpan address is missing"]
 
 # --- block ---
 Disk:

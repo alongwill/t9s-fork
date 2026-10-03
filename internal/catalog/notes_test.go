@@ -17,7 +17,7 @@ var knownDisplayTypes = map[string]string{
 	"ResolverSpec": "ResolverSpecs.net.talos.dev", "HostnameStatus": "HostnameStatuses.net.talos.dev",
 	"HostnameSpec": "HostnameSpecs.net.talos.dev", "NodeAddress": "NodeAddresses.net.talos.dev",
 	"TimeServerStatus": "TimeServerStatuses.net.talos.dev", "TimeServerSpec": "TimeServerSpecs.net.talos.dev",
-	"ProbeStatus": "ProbeStatuses.net.talos.dev", "KubeSpanPeerStatus": "KubeSpanPeerStatuses.kubespan.talos.dev",
+	"ProbeStatus": "ProbeStatuses.net.talos.dev", "KubeSpanPeerStatus": "KubeSpanPeerStatuses.kubespan.talos.dev", "KubeSpanIdentity": "KubeSpanIdentities.kubespan.talos.dev",
 	"Disk": "Disks.block.talos.dev", "DiscoveredVolume": "DiscoveredVolumes.block.talos.dev",
 	"VolumeConfig": "VolumeConfigs.block.talos.dev", "VolumeStatus": "VolumeStatuses.block.talos.dev",
 	"MountStatus": "MountStatuses.block.talos.dev", "SystemDisk": "SystemDisks.block.talos.dev",

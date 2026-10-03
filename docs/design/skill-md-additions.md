@@ -166,3 +166,15 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
   `--namespace=cri` (`-k` before 1.14): `Client.namespaceArgs`.
 - `memory` prints `NODE TOTAL USED …` in MB: `GetNodeMemoryTotalMB`.
 - Hook gotcha: a Bash heredoc that contains the CLI binary name is blocked too. Write such files with the Write tool.
+
+## Network view (PR D): new rows
+
+| Need | File |
+|---|---|
+| Network model: `Build`, `Fetch` (ResourceSource, semaphore 8), config-document matching, fixtures | `internal/netmodel/build.go`, `fetch.go`, `confmatch.go`, `parse.go`, `model.go`, `fixtures.go` |
+| HTML stack diagram: `RenderHTML`, `WriteHTML`, embedded template (`go:embed web/diagram.html`), golden JSON in `testdata/` | `internal/netmodel/html.go`, `internal/netmodel/web/diagram.html` |
+| Network view pane (`paneNetwork`; `N`, `:netview`, `n`): state, loading, tree nodes, keys, `o` | `internal/ui/netview.go` |
+| Network view drawing (`lipgloss/tree`, detail pane, summary line) | `internal/ui/netviewrender.go` |
+| Write a diagram for a fixture without a cluster | `hack/netview-example/main.go` |
+
+Notes for new network types go in the Talos skill's `knowledge/resource-notes.yaml` (e.g. `KubeSpanIdentity`), then `hack/sync-resource-notes.sh`.
