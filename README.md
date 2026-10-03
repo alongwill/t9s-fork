@@ -142,6 +142,9 @@ t9s
 # Specify a talosconfig and context
 t9s --talosconfig ~/.talos/config --context my-cluster
 
+# Resource browser data source: auto (default), grpc or cli
+t9s --source=grpc
+
 # Print version
 t9s --version
 ```
@@ -199,10 +202,20 @@ The types pane has two sections. **CONFIG** lists the machine-config document ki
 | <kbd>/</kbd>, <kbd>n</kbd> / <kbd>N</kbd> | YAML | Search (regex), next / previous match |
 | <kbd>w</kbd> | YAML | Toggle wrap |
 | <kbd>f</kbd> | YAML | Toggle full screen |
+| <kbd>W</kbd> | instances, YAML | Live watch on/off (gRPC source only) |
+| <kbd>c</kbd> | types (one instance), instances, YAML | Compare the selected resource or config document on every node (see below) |
 | <kbd>Esc</kbd> / <kbd>q</kbd> | all | Clear the filter or search first, then go back one pane; from the first pane back to the node list |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | all | Reload the data behind the current pane |
 
 Describe shows the type, display type, aliases, default namespace and sensitivity for a resource type, and the description, first Talos version and group for a config kind. Talos v1.14 has no `explain` subcommand, so resource field documentation is not available.
+
+**Data source (`--source=auto|grpc|cli`).** The resource browser can read COSI resources over Talos' gRPC API (`pkg/machinery/client`, same talosconfig and context) or through subprocesses of the Talos CLI. `auto` (default) dials gRPC in the background with a 5 s timeout and falls back to the CLI, noting `gRPC unavailable (<reason>), using CLI` in the status line, so the browser still works when the talosconfig auth mode is not supported by the library. The header shows `src: grpc` or `src: cli`. Every other view always uses the CLI.
+
+What needs gRPC: counting every type up front (categories show real `present/known` at once; the CLI source counts lazily per category) and the live watch. Compare works with both sources.
+
+**Live watch (<kbd>W</kbd>).** On an instances pane (and under its YAML pane) the browser watches that type on that node: rows appear, change and disappear as it happens, changed rows flash for about a second, the cursor stays on its ID, and an open YAML reloads when its resource is updated. The header shows `watch` or `watch off`. <kbd>W</kbd> toggles it; with the CLI source it says `watch needs the gRPC source`. <kbd>Ctrl</kbd>+<kbd>R</kbd> restarts it; leaving the pane, changing node or quitting cancels it.
+
+**Cross-node compare (<kbd>c</kbd>).** Opens one row per cluster node (`NODE ROLE PRESENT VERSION SAME?`) for the selected resource, or config document (kind + name), loaded from every node concurrently. `metadata.version`, `created`, `updated` and the `node` field are ignored; `SAME?` compares each node with the node the browser was opened on (`*`). <kbd>Enter</kbd> on a row opens a unified diff (`-` browser node, `+` other node); <kbd>Esc</kbd> / <kbd>q</kbd> back out one level, <kbd>Ctrl</kbd>+<kbd>R</kbd> refetches. It is <kbd>c</kbd>, not <kbd>x</kbd>, because <kbd>x</kbd> is t9s' global context switcher. Config documents need `os:admin` on every node.
 
 **All-types palette (<kbd>Ctrl</kbd>+<kbd>A</kbd>).** One full-width list of every config kind and resource type on the node (`NAME ALIASES CATEGORY KIND COUNT`), with the filter already open: type to narrow it, an exact alias (`addr`) ranks first. Counts of types not yet counted fill in as they arrive. <kbd>Enter</kbd> jumps to the type with the usual panes behind it, so <kbd>Esc</kbd> lands in its category; <kbd>Esc</kbd> clears the filter, then closes the palette. On the node list it opens the browser for the selected node first.
 
@@ -299,7 +312,7 @@ t9s/
 
 **Design notes**
 
-- Wraps `talosctl` as a subprocess — no gRPC dependency, authentication is inherited automatically
+- Wraps the Talos CLI as a subprocess, authentication is inherited automatically. The one exception is the resource browser, which can use Talos' gRPC client (`--source`) and falls back to the subprocess
 - Responsive column widths computed from the terminal width at render time
 - Backward line-counting guarantees the cursor is always visible in wrap mode
 - Goroutine + channel streaming with context cancellation — no goroutine leaks

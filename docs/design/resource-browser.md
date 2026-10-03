@@ -1,6 +1,6 @@
 # Design: t9s resource browser
 
-Status: draft, 2026-10-02. Target: Talos v1.14.x (v1.15 dev line tolerated).
+Status: phases 1-3 implemented, 2026-10-03. Target: Talos v1.14.x (v1.15 dev line tolerated).
 
 ## Goal
 
@@ -191,9 +191,26 @@ on Enter, pop on Esc. Keep it local to the browser states so other views are unc
 | 2 | Config documents section (embedded catalogue, machine-config split), `ctrl-a` palette, `:` command mode, `/` fuzzy filter, `d` describe | 1.5–2 days |
 | 3 | gRPC `ResourceSource`, live watch (`--watch`) of the open type, cross-node compare (same type on all nodes, diff YAML) | 2–3 days |
 
+## Status
+
+| Phase | State |
+|---|---|
+| 1 | done: `rd` + instances + YAML pane, categories, lazy counts |
+| 2 | done: config documents, `ctrl-a` palette, `:` command mode, fuzzy filter, `d` describe |
+| 3 | done: gRPC `ResourceSource` (`--source`), count-all, live watch (`W`), cross-node compare (`c`) |
+
+Deferred / not done:
+
+- Not verified against a live cluster or an Omni-managed talosconfig. A failed gRPC dial falls back to the CLI, but a source that dials fine and then fails per call is not retried on the CLI.
+- Watch covers resources only, not config documents (they are a snapshot of the machine config).
+- Compare diffs against the browser's node only, not pairwise. `d` describe has no field docs (no `explain` in v1.14).
+- Compare of config documents always reads the machine config through the CLI client.
+- The diff falls back to remove-all/add-all when the differing region exceeds about 4M line pairs.
+- Open question 3 (config document to produced resources links) is untouched.
+
 ## Open questions
 
-1. Is a gRPC client acceptable in t9s, or must it stay subprocess-only? (Decides phase 3.)
+1. ~~Is a gRPC client acceptable in t9s, or must it stay subprocess-only?~~ **Answered (Andrew, phase 3): yes, for the resource browser only.** Every other view keeps the subprocess client, and the subprocess source stays as the fallback (`--source=auto|grpc|cli`, default `auto`).
 2. Should the category list for a worker hide controlplane-only types (`etcd`, `controlplane`
    namespace) or show them greyed? Proposal: greyed, with a "controlplane only" hint.
 3. Should config documents link to the resources they produce (`DHCPv4Config` →

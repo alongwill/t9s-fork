@@ -21,6 +21,13 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
 | `d` describe pane (`paneDescribe`) | `internal/ui/browserdescribe.go` |
 | `ctrl+a` palette (`paneAliases`), `jumpTo`, `jumpCategory`, `categoryStack` | `internal/ui/browserpalette.go` |
 | `:` command mode (`cmdPrompt`, suggestions, history, grammar) | `internal/ui/command.go` |
+| `ResourceSource` interface, `cliSource`, `WatchEvent`, `ErrWatchUnsupported` | `internal/talos/source.go` |
+| gRPC source (`NewGRPCSource`, mapping helpers, CLI-identical YAML) | `internal/talos/grpcsource.go` |
+| `--source` modes, background dial, fallback status, `app.src()` | `internal/ui/source.go` |
+| Live watch (`syncWatch`, `waitForResourceWatch`, flash, `W`) | `internal/ui/browserwatch.go` |
+| Cross-node compare (`c`): subjects, normalisation, fetch, rows, render | `internal/ui/compare.go`, `internal/ui/compare_render.go` |
+| LCS line diff + unified diff | `internal/ui/diff.go` |
+| Test fakes: in-memory `fakeSource`, `collectMsgs` / `feed` | `internal/ui/fakesource_test.go`, `internal/ui/countall_test.go` |
 
 ## Patterns
 
@@ -65,6 +72,22 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
   `handleResourceDefs`.
 - **Describe has no field docs:** Talos v1.14 has no `explain` subcommand, so resource describe shows the
   `rd` fields only.
+
+## Phase 3 patterns
+
+- **gRPC exception.** The "no gRPC client" rule in SKILL.md now reads: only the resource browser may use
+  `pkg/machinery/client`, through `talos.ResourceSource`; every other view uses the subprocess `Client`. The CLI
+  source is the fallback and is used whenever the dial fails. `app.src()` returns it when `app.source` is nil
+  (tests, and before the background dial answers).
+- **Watch lifecycle** goes through `syncWatch` only, called from `Update` after every key and after `sourceReadyMsg`
+  (not from `handleKey`, so watch tests use `app.Update`). It starts/keeps/stops from the stack and compares
+  `watchKey` (node|type). `stopWatch` (pointer receiver, like `stopLogs`) is also called from `cleanup()` and
+  ctrl+r. Events carry `watchSeq`; old ones are dropped without re-arming. After bootstrap the watch is the
+  source of truth: late `resourceInstancesMsg` replies do not overwrite items.
+- **Compare** replies carry `compareSeq`. The key is `c`: the global context switcher takes `x` before the
+  browser key table. `paneCompare` and `paneDiff` use the full width. Config documents come from
+  `app.getConfig` (nil = CLI client) so tests can inject machine configs.
+- gRPC YAML is rendered like the CLI's `-o yaml` (`node:` line, then `metadata` / `spec`, machine-config special case).
 
 ## Gotchas
 
