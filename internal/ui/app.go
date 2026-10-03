@@ -303,7 +303,7 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return app.handleKey(msg)
 
 	case resourceDefsMsg:
-		return app.handleResourceDefs(msg), nil
+		return app.handleResourceDefs(msg)
 
 	case resourceCountMsg:
 		return app.handleResourceCount(msg), nil

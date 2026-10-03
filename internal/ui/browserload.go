@@ -101,15 +101,15 @@ func (app App) loadYAML(d talos.ResourceDef, m talos.ResourceMeta) tea.Cmd {
 	}
 }
 
-func (app App) handleResourceDefs(msg resourceDefsMsg) App {
+func (app App) handleResourceDefs(msg resourceDefsMsg) (App, tea.Cmd) {
 	if len(app.browser.stack) == 0 || app.browser.node.IP != msg.node {
-		return app
+		return app, nil
 	}
 	app.browser.defsLoading = false
 	if msg.err != nil {
 		app.browser.defsErr = msg.err.Error()
 		app.statusMsg = errStyle.Render("Error: " + msg.err.Error())
-		return app
+		return app, nil
 	}
 	cache := make(map[string][]talos.ResourceDef, len(app.resourceDefs)+1)
 	for k, v := range app.resourceDefs {
@@ -120,7 +120,10 @@ func (app App) handleResourceDefs(msg resourceDefsMsg) App {
 	app.browser.defs = msg.defs
 	app.browser.defsErr = ""
 	app.statusMsg = ""
-	return app
+	if app.hasPalette() { // the palette was opened before the definitions arrived
+		return app.paletteCounts()
+	}
+	return app, nil
 }
 
 func (app App) handleResourceCount(msg resourceCountMsg) App {

@@ -202,6 +202,15 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		}
 		return app.openBrowser(*n)
 
+	case "ctrl+a":
+		n := app.selectedNode()
+		if n == nil {
+			return app, nil
+		}
+		app, openCmd := app.openBrowser(*n)
+		app, palCmd := app.openPalette()
+		return app, tea.Batch(openCmd, palCmd)
+
 	case "A":
 		n := app.selectedNode()
 		if n == nil {

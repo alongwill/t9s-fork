@@ -26,6 +26,7 @@ const (
 	paneInstances
 	paneYAML
 	paneDescribe
+	paneAliases // ctrl+a palette
 )
 
 // Count sentinels in browser.counts (missing key = not loaded yet).
@@ -338,6 +339,9 @@ func (app App) browserLayout() []paneBox {
 	if n == 0 {
 		return nil
 	}
+	if st[n-1].kind == paneAliases { // the palette takes the whole width
+		return []paneBox{{n - 1, app.width}}
+	}
 	if app.browser.fullscreen && st[n-1].kind == paneYAML {
 		return []paneBox{{n - 1, app.width}}
 	}
@@ -374,7 +378,7 @@ func (app App) browserLayout() []paneBox {
 // paneInnerRows is the number of list rows (or YAML lines) visible in a pane.
 func (app App) paneInnerRows(k paneKind) int {
 	rows := app.mainHeight() - 2
-	if k == paneInstances {
+	if k == paneInstances || k == paneAliases {
 		rows-- // column header
 	}
 	return max(1, rows)
@@ -488,6 +492,8 @@ func (app App) paneLen(p pane) int {
 		return len(yamlVisual(p.yaml, app.yamlInnerWidth(), b.wrap))
 	case paneDescribe:
 		return app.paneDescribeLen(p)
+	case paneAliases:
+		return len(b.paletteRows(p.filter))
 	}
 	return 0
 }
@@ -506,6 +512,8 @@ func (app App) breadcrumb() string {
 			parts = append(parts, p.meta.ID)
 		case paneDescribe:
 			parts = append(parts, "describe")
+		case paneAliases:
+			parts = append(parts, "all types")
 		}
 	}
 	return strings.Join(parts, " > ")

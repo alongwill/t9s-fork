@@ -55,6 +55,10 @@ func browserActionsFor(kind paneKind) []keyAction {
 		{keys: []string{"ctrl+b", "pgup"}, desc: "Page up", fn: pageAction(-1)},
 	}
 	switch kind {
+	case paneAliases:
+		as = append(as,
+			keyAction{keys: []string{"enter"}, label: "↵", desc: "Jump to type", visible: true, fn: (App).paletteSelect},
+		)
 	case paneDescribe:
 		as = append(as,
 			keyAction{keys: []string{"y"}, desc: "YAML", visible: true, fn: (App).describeToYAML},
@@ -82,6 +86,9 @@ func browserActionsFor(kind paneKind) []keyAction {
 		if kind == paneTypes || kind == paneInstances {
 			as = append(as, keyAction{keys: []string{"d"}, desc: "Describe", visible: true, fn: (App).openDescribe})
 		}
+	}
+	if kind != paneAliases {
+		as = append(as, keyAction{keys: []string{"ctrl+a"}, label: "^a", desc: "All types (aliases palette)", visible: true, fn: (App).openPalette})
 	}
 	return append(as,
 		keyAction{keys: []string{"esc", "q"}, label: "Esc/q", desc: "Back (clears filter first)", visible: true, fn: (App).browserBack},
@@ -225,6 +232,11 @@ func (app App) openPrompt(kind promptKind) (App, tea.Cmd) {
 }
 
 func (app App) handleBrowserPrompt(msg tea.KeyMsg) (App, tea.Cmd) {
+	if top, ok := app.browser.top(); ok && top.kind == paneAliases {
+		if a, cmd, handled := app.handlePalettePromptKey(msg); handled {
+			return a, cmd
+		}
+	}
 	switch msg.String() {
 	case "ctrl+c":
 		app.cleanup()
@@ -499,6 +511,8 @@ func (app App) browserReload() (App, tea.Cmd) {
 
 	case paneDescribe:
 		return app, nil
+	case paneAliases:
+		return app.paletteCounts()
 	case paneYAML:
 		if p.cfgKind != "" {
 			return app.reloadConfig(nil)

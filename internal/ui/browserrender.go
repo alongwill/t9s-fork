@@ -64,6 +64,8 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 		body = app.yamlLines(p, iw, inner)
 	case paneDescribe:
 		body = app.describeLines(p, iw, inner)
+	case paneAliases:
+		body = app.paletteLines(p, iw, inner)
 	}
 
 	lines := make([]string, 0, h)
@@ -89,6 +91,8 @@ func (app App) paneTitle(p pane) string {
 	switch p.kind {
 	case paneTypes:
 		return fmt.Sprintf("%s (%d)", p.title, len(app.browser.typeEntries(p.category, p.filter)))
+	case paneAliases:
+		return app.palettePaneTitle(p)
 	case paneInstances:
 		if p.loading {
 			return p.title

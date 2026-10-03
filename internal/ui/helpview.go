@@ -59,6 +59,7 @@ func buildHelpContent() string {
 		{"p", "Processes"},
 		{"c", "Containers"},
 		{"a", "Resource browser"},
+		{"ctrl+a", "All types palette (browser for the selected node)"},
 		{"A", "Network addresses"},
 		{"i", "Disks"},
 		{"H", "Cluster health"},
