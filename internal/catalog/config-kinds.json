@@ -1,0 +1,581 @@
+{
+ "generatedFrom": "v1.15.0-alpha.0",
+ "kinds": [
+  {
+   "kind": "BGPInstanceConfig",
+   "group": "network",
+   "since": "v1.14",
+   "desc": "Native BGP via an embedded GoBGP instance \u2014 named instances that can advertise VIP/pod CIDRs and import routes between instances, no external speaker needed."
+  },
+  {
+   "kind": "BlackholeRouteConfig",
+   "group": "network",
+   "since": "v1.13",
+   "desc": "Install a blackhole route to silently drop traffic to a prefix."
+  },
+  {
+   "kind": "BondConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Bond several links into one for link aggregation / failover, choosing a bonding mode."
+  },
+  {
+   "kind": "BridgeConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Create a software L2 bridge and enslave links to it."
+  },
+  {
+   "kind": "CPUScalingConfig",
+   "group": "hardware",
+   "since": "v1.15",
+   "desc": "Set the cpufreq governor, energy-performance preference and min/max frequency for the CPU frequency policies matched by a CEL selector (e.g. only performance cores). First document by name wins a policy; removing it restores the boot values. Cannot be combined with cpufreq keys in `SysfsConfig`."
+  },
+  {
+   "kind": "CRIBaseRuntimeSpecConfig",
+   "group": "cri",
+   "since": "v1.14",
+   "desc": "Set the containerd base OCI runtime spec applied to all containers."
+  },
+  {
+   "kind": "CRICustomizationConfig",
+   "group": "cri",
+   "since": "v1.14",
+   "desc": "Layer additional containerd/CRI config customizations (dedicated doc, replaces inline file tweaks)."
+  },
+  {
+   "kind": "ContainerConfig",
+   "group": "container",
+   "since": "v1.14",
+   "desc": "Run a container directly on the node without Kubernetes: started as soon as the config is applied, in the dedicated `taloscontainers` CRI namespace, auto-restarted 5s after it exits. Not a Talos service (`talosctl services` won't list it); status comes from the `ContainerStatus` resource."
+  },
+  {
+   "kind": "ContentLibraryConfig",
+   "group": "hypervisor",
+   "since": "v1.15",
+   "desc": "Declare a content library: a flat store of VM images at the root of a user/existing/external volume, filled over the API with `talosctl hypervisor content-library upload`, never by editing config. One volume backs one library; read-only volumes are rejected. Status: `ContentLibraryStatus`."
+  },
+  {
+   "kind": "DHCPv4Config",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Tune the DHCPv4 client per link. v1.14 adds `ignoreRoutes`; `skipHostnameRequest` avoids DHCP hostname override."
+  },
+  {
+   "kind": "DHCPv6Config",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Tune the DHCPv6 client per link."
+  },
+  {
+   "kind": "DiscoveryIdentityConfig",
+   "group": "cluster",
+   "since": "v1.14",
+   "desc": "Holds the cluster ID and shared secret (extracted from v1alpha1) that identify the cluster to discovery."
+  },
+  {
+   "kind": "DiscoveryServiceConfig",
+   "group": "cluster",
+   "since": "v1.14",
+   "desc": "Configure the external discovery service registry endpoint used for node discovery."
+  },
+  {
+   "kind": "DiskSMARTConfig",
+   "group": "block",
+   "since": "v1.15",
+   "desc": "Collect disk SMART health data on an interval (default 30m). The document's presence enables collection \u2014 removing it disables it and drops the `smart` resources; spun-down rotational disks are left alone."
+  },
+  {
+   "kind": "DummyLinkConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Create a dummy interface (a stable local address holder / blackhole)."
+  },
+  {
+   "kind": "EnvironmentConfig",
+   "group": "runtime",
+   "since": "v1.13",
+   "desc": "Set machine-wide environment variables (replaces `.machine.env`)."
+  },
+  {
+   "kind": "EtcFileConfig",
+   "group": "runtime",
+   "since": "v1.14",
+   "desc": "Declaratively manage files under /etc (name/contents/mode)."
+  },
+  {
+   "kind": "EthernetConfig",
+   "group": "network",
+   "since": "v1.10",
+   "desc": "Tune NIC hardware settings: ring buffers, channels, features (offloads), and WoL."
+  },
+  {
+   "kind": "EventSinkConfig",
+   "group": "runtime",
+   "since": "v1.5",
+   "desc": "Send Talos runtime events to an external gRPC sink."
+  },
+  {
+   "kind": "ExistingVolumeConfig",
+   "group": "block",
+   "since": "v1.11",
+   "desc": "Adopt an already-formatted volume (by selector) without wiping it, and mount it."
+  },
+  {
+   "kind": "ExtensionServiceConfig",
+   "group": "extensions",
+   "since": "v1.7",
+   "desc": "Provide runtime config (env, files, args) to an installed extension service."
+  },
+  {
+   "kind": "ExternalVolumeConfig",
+   "group": "block",
+   "since": "v1.13",
+   "desc": "Reference storage provisioned/attached outside Talos (e.g. iSCSI/cloud disk) so it can be mounted."
+  },
+  {
+   "kind": "FilesystemScrubConfig",
+   "group": "block",
+   "since": "v1.14",
+   "desc": "Schedule periodic online filesystem scrubbing (xfs_scrub / btrfs scrub) on filesystems that support it (min interval 10s)."
+  },
+  {
+   "kind": "FilesystemTrimConfig",
+   "group": "block",
+   "since": "v1.14",
+   "desc": "Schedule periodic `fstrim` on SSD-backed volumes (default 7-day interval), with a per-volume `trim:` override."
+  },
+  {
+   "kind": "HCloudVIPConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Manage a Hetzner Cloud floating IP as a VIP via the cloud API."
+  },
+  {
+   "kind": "HTTPProbeConfig",
+   "group": "network",
+   "since": "v1.14",
+   "desc": "Define an HTTP reachability probe used by network readiness logic."
+  },
+  {
+   "kind": "HostnameConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Set the node hostname (and domain)."
+  },
+  {
+   "kind": "ImageCacheConfig",
+   "group": "cri",
+   "since": "v1.14",
+   "desc": "Enable the local image cache (`local.enabled: true`) \u2014 the canonical replacement for `.machine.features.imageCache.localEnabled`."
+  },
+  {
+   "kind": "ImageVerificationConfig",
+   "group": "security",
+   "since": "v1.13",
+   "desc": "Machine-wide container image signature verification policy."
+  },
+  {
+   "kind": "KernelModuleConfig",
+   "group": "runtime",
+   "since": "v1.14",
+   "desc": "Load kernel modules with options (multi-doc, replaces `.machine.kernel.modules`)."
+  },
+  {
+   "kind": "KmsgLogConfig",
+   "group": "runtime",
+   "since": "v1.5",
+   "desc": "Ship kernel/service logs to a remote sink (UDP/TCP json_lines)."
+  },
+  {
+   "kind": "KubeAPIServerCAConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "The Kubernetes API server CA cert/key (extracted from the secrets bundle)."
+  },
+  {
+   "kind": "KubeAPIServerConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "kube-apiserver settings: extra args, extra volumes, cert SANs, admission."
+  },
+  {
+   "kind": "KubeAdmissionControlConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Admission controller / PodSecurity configuration for the API server."
+  },
+  {
+   "kind": "KubeAggregatorCAConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "The front-proxy/aggregator CA used for the API aggregation layer."
+  },
+  {
+   "kind": "KubeAuditPolicyConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "API server audit policy."
+  },
+  {
+   "kind": "KubeAuthenticationConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "API server authentication config (e.g. structured auth / OIDC)."
+  },
+  {
+   "kind": "KubeAuthorizerConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "API server authorization mode/config (e.g. structured authz)."
+  },
+  {
+   "kind": "KubeClusterConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Cluster-wide Kubernetes base settings (name, dns domain, cluster-level toggles) extracted from v1alpha1 `.cluster`."
+  },
+  {
+   "kind": "KubeControllerManagerConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "kube-controller-manager extra args and volumes."
+  },
+  {
+   "kind": "KubeCoreDNSConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Cluster DNS (CoreDNS) settings, or disabling the managed deployment."
+  },
+  {
+   "kind": "KubeCredentialProviderConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Kubelet image credential provider config for registry auth."
+  },
+  {
+   "kind": "KubeEtcdEncryptionConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Encryption-at-rest config for Kubernetes secrets in etcd."
+  },
+  {
+   "kind": "KubeExternalManifestConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Bootstrap manifests fetched from external URLs at cluster bootstrap."
+  },
+  {
+   "kind": "KubeFlannelCNIConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Flannel CNI settings; `backendMTU` now auto-aligns to the KubeSpan MTU."
+  },
+  {
+   "kind": "KubeInlineManifestConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Bootstrap manifests embedded inline, applied once at cluster bootstrap."
+  },
+  {
+   "kind": "KubeNetworkConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Pod/service CIDRs and cluster networking (moved out of `.cluster.network`); supports per-node pod CIDR."
+  },
+  {
+   "kind": "KubeNodeConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Per-node Kubernetes settings extracted from the v1alpha1 `.cluster`/`.machine` blocks."
+  },
+  {
+   "kind": "KubePrismConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "KubePrism \u2014 the local load-balancing API endpoint on each node (replaces `.machine.features.kubePrism`)."
+  },
+  {
+   "kind": "KubeProxyConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "kube-proxy settings (mode, extra args), or disabling it for eBPF CNIs."
+  },
+  {
+   "kind": "KubeSchedulerConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "kube-scheduler extra args, config, and volumes."
+  },
+  {
+   "kind": "KubeServiceAccountConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Service-account issuer/signing key configuration."
+  },
+  {
+   "kind": "KubeSpanConfig",
+   "group": "network",
+   "since": "v1.13",
+   "desc": "Enable/configure KubeSpan \u2014 Talos's automatic WireGuard mesh between all cluster nodes."
+  },
+  {
+   "kind": "KubeSpanEndpointsConfig",
+   "group": "network",
+   "since": "v1.8",
+   "desc": "Provide extra/override endpoints for KubeSpan peers (e.g. behind NAT)."
+  },
+  {
+   "kind": "KubeStaticPodConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Define extra static pods to run on nodes (moved out of `.machine.pods`)."
+  },
+  {
+   "kind": "KubeTalosAPIAccessConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Controls whether/which Talos API access is granted to workloads in Kubernetes (moved out of Kubernetes config)."
+  },
+  {
+   "kind": "KubeletConfig",
+   "group": "kubernetes",
+   "since": "v1.14",
+   "desc": "Kubelet configuration (replaces `.machine.kubelet`): extra args, node IP, feature gates, extra mounts."
+  },
+  {
+   "kind": "LVMLogicalVolumeConfig",
+   "group": "storage",
+   "since": "v1.14",
+   "desc": "Declaratively define logical volumes in a VG (linear/raid0/raid1/raid10). Reconcile is additive-only \u2014 shrinking errors out."
+  },
+  {
+   "kind": "LVMVolumeGroupConfig",
+   "group": "storage",
+   "since": "v1.14",
+   "desc": "Declaratively define an LVM volume group from matching physical volumes/disks."
+  },
+  {
+   "kind": "Layer2VIPConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Configure a shared/floating layer-2 VIP for HA control planes (gratuitous-ARP failover)."
+  },
+  {
+   "kind": "LinkAliasConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Give a link a stable alias/selector so config can target it by predictable name rather than kernel name (eth0/enp3s0)."
+  },
+  {
+   "kind": "LinkConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Configure a physical/logical network link: up/down, MTU, and whether it participates in DHCP."
+  },
+  {
+   "kind": "MacVLANConfig",
+   "group": "network",
+   "since": "v1.15",
+   "desc": "Create a MACVLAN link over a parent link \u2014 a second MAC address on the same physical NIC."
+  },
+  {
+   "kind": "NetworkDefaultActionConfig",
+   "group": "network",
+   "since": "v1.6",
+   "desc": "Set the default ingress firewall policy (accept vs block) that the rules refine."
+  },
+  {
+   "kind": "NetworkRuleConfig",
+   "group": "network",
+   "since": "v1.6",
+   "desc": "Declare an ingress firewall rule (ports/protocols/sources) for the host."
+  },
+  {
+   "kind": "OOMConfig",
+   "group": "runtime",
+   "since": "v1.12",
+   "desc": "Configure the userspace OOM handler: CEL trigger/ranking expressions for which cgroup to kill under memory pressure."
+  },
+  {
+   "kind": "PCIDriverRebindConfig",
+   "group": "hardware",
+   "since": "v1.10",
+   "desc": "Rebind a PCI device to a different kernel driver (e.g. hand a NIC/GPU to vfio-pci for passthrough)."
+  },
+  {
+   "kind": "RAIDArrayConfig",
+   "group": "storage",
+   "since": "v1.14",
+   "desc": "Declaratively provision a Linux MD (software RAID) array from matching disks; Talos can boot from a RAID1 array."
+  },
+  {
+   "kind": "RawVolumeConfig",
+   "group": "block",
+   "since": "v1.11",
+   "desc": "Provision a raw (unformatted) partition to hand to a CSI driver or app that manages its own format."
+  },
+  {
+   "kind": "RegistryAuthConfig",
+   "group": "cri",
+   "since": "v1.12",
+   "desc": "Provide pull credentials for a registry."
+  },
+  {
+   "kind": "RegistryMirrorConfig",
+   "group": "cri",
+   "since": "v1.12",
+   "desc": "Point a registry (e.g. docker.io) at one or more mirror endpoints; replaces `.machine.registries.mirrors`."
+  },
+  {
+   "kind": "RegistryTLSConfig",
+   "group": "cri",
+   "since": "v1.12",
+   "desc": "Provide TLS settings (CA/insecure/client cert) for a registry."
+  },
+  {
+   "kind": "ResolverConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Set DNS nameservers and search domains. v1.14 adds per-server protocol (Do53/DoT/DoH) + host DNS caching options; `domains` override DHCP search domains."
+  },
+  {
+   "kind": "RoutingRuleConfig",
+   "group": "network",
+   "since": "v1.13",
+   "desc": "Add policy routing rules (rule table selection by src/fwmark)."
+  },
+  {
+   "kind": "SecurityProfileConfig",
+   "group": "runtime",
+   "since": "v1.14",
+   "desc": "Adjust machine security profile settings (e.g. seccomp/hardening toggles)."
+  },
+  {
+   "kind": "SideroLinkConfig",
+   "group": "siderolink",
+   "since": "v1.5",
+   "desc": "Configure the SideroLink point-to-point WireGuard management overlay (used by Omni)."
+  },
+  {
+   "kind": "StaticHostConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Add static host-to-IP mappings resolved locally."
+  },
+  {
+   "kind": "StoragePool",
+   "group": "storage",
+   "since": "v1.15",
+   "desc": "Define a libvirt directory storage pool (holds VM disk volumes) at `<volume mount>/<pool name>` on a writable user/existing/external volume. Requires the libvirt system extension; removing the document undefines the pool but keeps its files. Status: `StoragePoolStatus`."
+  },
+  {
+   "kind": "SwapVolumeConfig",
+   "group": "block",
+   "since": "v1.11",
+   "desc": "Provision a swap volume (optionally encrypted); pairs with Kubernetes swap support."
+  },
+  {
+   "kind": "SysctlConfig",
+   "group": "runtime",
+   "since": "v1.14",
+   "desc": "Set kernel sysctls (replaces `.machine.sysctls`); config generate emits it as a multi-doc."
+  },
+  {
+   "kind": "SysfsConfig",
+   "group": "runtime",
+   "since": "v1.14",
+   "desc": "Set /sys attributes (replaces `.machine.sysfs`)."
+  },
+  {
+   "kind": "TCPProbeConfig",
+   "group": "network",
+   "since": "v1.13",
+   "desc": "Define a TCP reachability probe used by network readiness logic."
+  },
+  {
+   "kind": "TimeSyncConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Configure NTP time servers."
+  },
+  {
+   "kind": "TrustedRootsConfig",
+   "group": "security",
+   "since": "v1.8",
+   "desc": "Add extra trusted CA root certificates machine-wide (for corporate TLS interception or private registries)."
+  },
+  {
+   "kind": "UdevRulesConfig",
+   "group": "runtime",
+   "since": "v1.14",
+   "desc": "Add udev rules (additive to the legacy `.machine.udev` field)."
+  },
+  {
+   "kind": "UnattendedInstallConfig",
+   "group": "runtime",
+   "since": "v1.14",
+   "desc": "Drive fully automated, hands-off installation (no interactive/maintenance step)."
+  },
+  {
+   "kind": "UserVolumeConfig",
+   "group": "block",
+   "since": "v1.10",
+   "desc": "Carve a user-defined volume out of a selected disk (CEL selector), pick size and filesystem (ext4/xfs, btrfs in v1.14). Mounted under /var/mnt."
+  },
+  {
+   "kind": "VLANConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Create 802.1Q VLAN sub-interfaces on a parent link."
+  },
+  {
+   "kind": "VRFConfig",
+   "group": "network",
+   "since": "v1.13",
+   "desc": "Create a VRF (virtual routing & forwarding) device to isolate a routing table."
+  },
+  {
+   "kind": "VXLANConfig",
+   "group": "network",
+   "since": "v1.15",
+   "desc": "Create a VXLAN (Virtual eXtensible LAN) overlay link over a parent link."
+  },
+  {
+   "kind": "VethConfig",
+   "group": "network",
+   "since": "v1.14",
+   "desc": "Create a veth (virtual ethernet) pair \u2014 two linked interfaces, typically to wire a namespace/bridge together."
+  },
+  {
+   "kind": "VirtualMachineConfig",
+   "group": "hypervisor",
+   "since": "v1.15",
+   "desc": "Declare a virtual machine run by Talos through libvirt: power state, vCPUs with an optional host-CPU millicore ceiling, memory and ballooning, UEFI/BIOS firmware with secure boot, disks in a storage pool (blank or from a content-library image), NICs on host links, serial/VNC consoles. Work in progress: VMs with disks are not started yet."
+  },
+  {
+   "kind": "VolumeConfig",
+   "group": "block",
+   "since": "v1.8",
+   "desc": "Customize built-in system volumes (EPHEMERAL, and per-service overrides for CRI/kubelet/etcd): disk selector, size, encryption. One-time provisioning for system volumes."
+  },
+  {
+   "kind": "WatchdogTimerConfig",
+   "group": "runtime",
+   "since": "v1.7",
+   "desc": "Arm a hardware watchdog so a wedged node auto-reboots."
+  },
+  {
+   "kind": "WireguardConfig",
+   "group": "network",
+   "since": "v1.12",
+   "desc": "Manually configure a WireGuard interface (peers, keys, allowed IPs) as a plain overlay \u2014 distinct from KubeSpan."
+  },
+  {
+   "kind": "ZswapConfig",
+   "group": "block",
+   "since": "v1.11",
+   "desc": "Enable zswap \u2014 a compressed RAM cache in front of swap devices."
+  }
+ ]
+}
