@@ -10,6 +10,7 @@ import (
 	"github.com/cosi-project/runtime/pkg/resource/meta"
 	"github.com/cosi-project/runtime/pkg/resource/protobuf"
 	"github.com/cosi-project/runtime/pkg/state"
+	inspectapi "github.com/siderolabs/talos/pkg/machinery/api/inspect"
 	"github.com/siderolabs/talos/pkg/machinery/client"
 	yaml "go.yaml.in/yaml/v4"
 )
@@ -23,6 +24,8 @@ type grpcSource struct {
 	st       state.State
 	withNode func(ctx context.Context, node string) context.Context
 	closer   func() error
+	// inspect fetches the controller runtime graph; nil when unavailable.
+	inspect func(ctx context.Context, node string) (*inspectapi.ControllerRuntimeDependenciesResponse, error)
 }
 
 // NewGRPCSource connects with the talosconfig and context t9s already
@@ -45,6 +48,9 @@ func NewGRPCSource(ctx context.Context, cfgPath, contextName string) (ResourceSo
 	}
 
 	src := newGRPCSourceFromState(c.COSI, client.WithNode, c.Close)
+	src.inspect = func(ctx context.Context, node string) (*inspectapi.ControllerRuntimeDependenciesResponse, error) {
+		return c.Inspect.ControllerRuntimeDependencies(client.WithNode(ctx, node))
+	}
 	if _, err := c.COSI.List(ctx, resource.NewMetadata(meta.NamespaceName, meta.NamespaceType, "", resource.VersionUndefined)); err != nil {
 		_ = c.Close()
 		return nil, err
@@ -125,6 +131,7 @@ func metaFromResource(r resource.Resource) ResourceMeta {
 		ID:        md.ID(),
 		Version:   md.Version().String(),
 		Phase:     md.Phase().String(),
+		Owner:     md.Owner(),
 	}
 }
 
@@ -177,6 +184,17 @@ func marshalResourceYAML(node string, r resource.Resource) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func (s *grpcSource) Dependencies(ctx context.Context, node string) (DepGraph, error) {
+	if s.inspect == nil {
+		return DepGraph{}, ErrNeedsGRPC
+	}
+	resp, err := s.inspect(ctx, node)
+	if err != nil && resp == nil {
+		return DepGraph{}, wrapGRPCErr(err)
+	}
+	return DepGraphFromProto(resp), nil
 }
 
 func (s *grpcSource) Watch(ctx context.Context, node, ns, typ string, out chan<- WatchEvent) error {

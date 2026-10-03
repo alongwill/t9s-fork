@@ -30,6 +30,7 @@ type resourceEnvelope struct {
 		ID        string `json:"id"`
 		Version   any    `json:"version"`
 		Phase     string `json:"phase"`
+		Owner     string `json:"owner"`
 	} `json:"metadata"`
 }
 
@@ -108,6 +109,7 @@ func parseResourceList(data []byte) ([]ResourceMeta, error) {
 			ID:        e.Metadata.ID,
 			Version:   v,
 			Phase:     e.Metadata.Phase,
+			Owner:     e.Metadata.Owner,
 		})
 	}
 	return out, nil

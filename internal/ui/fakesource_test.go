@@ -18,6 +18,10 @@ type fakeSource struct {
 	errs  map[string]error                // "node|type" → list error
 	yerrs map[string]error                // "node|type|id" → GetYAML error
 
+	deps     talos.DepGraph
+	depsErr  error
+	depCalls atomic.Int32
+
 	listCalls  atomic.Int32
 	yamlCalls  atomic.Int32
 	watchCalls atomic.Int32
@@ -64,6 +68,11 @@ func (f *fakeSource) GetYAML(_ context.Context, node, _, typ, id string) (string
 		return y, nil
 	}
 	return "", fmt.Errorf("not found: %s|%s|%s", node, typ, id)
+}
+
+func (f *fakeSource) Dependencies(context.Context, string) (talos.DepGraph, error) {
+	f.depCalls.Add(1)
+	return f.deps, f.depsErr
 }
 
 func (f *fakeSource) Watch(ctx context.Context, node, ns, typ string, out chan<- talos.WatchEvent) error {

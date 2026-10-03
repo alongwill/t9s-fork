@@ -88,5 +88,6 @@ type ResourceDef struct {
 	Sensitive        bool
 }
 
-// ResourceMeta is the metadata of one resource instance.
-type ResourceMeta struct{ Namespace, Type, ID, Version, Phase string }
+// ResourceMeta is the metadata of one resource instance. Owner is the
+// controller that wrote it (empty for resources written by the API).
+type ResourceMeta struct{ Namespace, Type, ID, Version, Phase, Owner string }

@@ -27,6 +27,9 @@ type ResourceSource interface {
 	// initial contents as created events followed by one bootstrapped event and
 	// never closes out.
 	Watch(ctx context.Context, node, ns, typ string, out chan<- WatchEvent) error
+	// Dependencies returns the controller-resource graph of the node, or
+	// ErrNeedsGRPC when the source cannot provide it.
+	Dependencies(ctx context.Context, node string) (DepGraph, error)
 	Close() error
 }
 
@@ -48,6 +51,10 @@ func (s cliSource) List(ctx context.Context, node, ns, typ string) ([]ResourceMe
 
 func (s cliSource) GetYAML(ctx context.Context, node, ns, typ, id string) (string, error) {
 	return s.c.GetResourceYAML(ctx, node, ns, typ, id)
+}
+
+func (s cliSource) Dependencies(ctx context.Context, node string) (DepGraph, error) {
+	return s.c.Dependencies(ctx, node)
 }
 
 func (cliSource) Watch(context.Context, string, string, string, chan<- WatchEvent) error {
