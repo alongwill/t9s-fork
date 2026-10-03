@@ -17,8 +17,6 @@ var (
 	pathSelStyle       = lipgloss.NewStyle().Foreground(colorCyan).Bold(true) // selected row in an inactive pane
 )
 
-var yamlTopKey = regexp.MustCompile(`^[A-Za-z0-9_.\-]+:`)
-
 // renderBrowser draws the Miller columns: the visible slice of the pane
 // stack left to right, every line padded to the terminal width.
 func (app App) renderBrowser(height int) string {
@@ -381,44 +379,4 @@ func (app App) yamlLines(p pane, iw, inner int) []string {
 		out = append(out, colorYAMLLine(fit(l.text, iw), find, hs))
 	}
 	return out
-}
-
-// colorYAMLLine colours a top-level key and highlights search matches. text
-// is already padded to the pane width; spans come from regexp so they always
-// fall on rune boundaries.
-func colorYAMLLine(text string, find *regexp.Regexp, hs lipgloss.Style) string {
-	marks := make([]int8, len(text))
-	if loc := yamlTopKey.FindStringIndex(text); loc != nil {
-		for i := loc[0]; i < loc[1]; i++ {
-			marks[i] = 1
-		}
-	}
-	if find != nil {
-		for _, loc := range find.FindAllStringIndex(text, -1) {
-			if loc[1] <= loc[0] {
-				continue
-			}
-			for i := loc[0]; i < loc[1]; i++ {
-				marks[i] = 2
-			}
-		}
-	}
-	var sb strings.Builder
-	for i := 0; i < len(text); {
-		j := i
-		for j < len(text) && marks[j] == marks[i] {
-			j++
-		}
-		run := text[i:j]
-		switch marks[i] {
-		case 1:
-			sb.WriteString(yamlKeyStyle.Render(run))
-		case 2:
-			sb.WriteString(hs.Render(run))
-		default:
-			sb.WriteString(run)
-		}
-		i = j
-	}
-	return sb.String()
 }

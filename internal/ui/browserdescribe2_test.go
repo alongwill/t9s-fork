@@ -69,8 +69,8 @@ func TestDescribeResourceSections(t *testing.T) {
 		"ON UBUNTU", "ip -d link show",
 		"LOOK HERE", "link is down or has the wrong MTU · a bond",
 		"WRITTEN BY", "network.LinkStatusController (owner of eth0)",
-		"FED BY", "├─ reads " + tGhost, "└─ reads " + tSpec,
-		"FEEDS", "network.AddressStatusController", "└─ writes " + tAddr,
+		"FED BY", "├─◀ " + tGhost, "└─◀ " + tSpec,
+		"FEEDS", "network.AddressStatusController", "└─▶ " + tAddr,
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing %q in:\n%s", want, text)

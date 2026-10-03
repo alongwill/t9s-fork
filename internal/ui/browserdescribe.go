@@ -171,9 +171,11 @@ func (app App) depGraph() (talos.DepGraph, string) {
 // controllerTrees appends one small tree per controller: the controller, then
 // the types it reads (inputs) or writes (outputs).
 func (app App) controllerTrees(rows []drow, label string, g talos.DepGraph, ctrls []string, inputs bool) []drow {
-	verb := "writes"
+	// Arrows show the direction of flow: inputs point at the controller that
+	// reads them, outputs point away to what it writes.
+	arrow := "▶"
 	if inputs {
-		verb = "reads"
+		arrow = "◀"
 	}
 	for i, c := range ctrls {
 		if i == maxDescKids {
@@ -186,9 +188,9 @@ func (app App) controllerTrees(rows []drow, label string, g talos.DepGraph, ctrl
 		}
 		t := tree.Root(c).Enumerator(func(ch tree.Children, i int) string {
 			if i == ch.Length()-1 {
-				return "└─"
+				return "└─" + arrow
 			}
-			return "├─"
+			return "├─" + arrow
 		}).Indenter(func(tree.Children, int) string { return "   " })
 		var kids []drow
 		for j, e := range edges {
@@ -198,7 +200,7 @@ func (app App) controllerTrees(rows []drow, label string, g talos.DepGraph, ctrl
 				break
 			}
 			_, exists := app.browser.lookupType(e.Type)
-			kids = append(kids, drow{raw: true, typ: e.Type, sel: exists, dim: !exists, text: verb + " " + e.Type})
+			kids = append(kids, drow{raw: true, typ: e.Type, sel: exists, dim: !exists, text: e.Type})
 			t.Child(kids[len(kids)-1].text)
 		}
 		lines := strings.Split(t.String(), "\n")
@@ -300,6 +302,8 @@ func (app App) describeLines(p pane, iw, inner int) []string {
 			body = selectedStyle.Render(body)
 		case l.dim:
 			body = dimStyle.Render(body)
+		default:
+			body = colorTreeText(body)
 		}
 		out = append(out, lab+body)
 	}

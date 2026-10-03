@@ -487,7 +487,7 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			app.machConf = msg.content
 			app.machSection = extractSpecContent(msg.content)
-			app.machVP.SetContent(app.machSection)
+			app.machVP.SetContent(colorYAMLText(app.machSection, ""))
 			app.statusMsg = ""
 		}
 		return app, nil

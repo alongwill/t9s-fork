@@ -70,7 +70,7 @@ func (app App) handleMachineConfigKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			// First Esc clears the search highlight.
 			app.machFindQuery = ""
 			app.machFindLines = nil
-			app.machVP.SetContent(app.machSection)
+			app.machVP.SetContent(colorYAMLText(app.machSection, ""))
 			app.statusMsg = ""
 			return app, nil
 		}
@@ -127,7 +127,7 @@ func (app App) machComputeMatches() App {
 	app.machFindIdx = 0
 
 	// Re-render content with highlighted matches.
-	app.machVP.SetContent(machHighlightMatches(app.machSection, app.machFindQuery))
+	app.machVP.SetContent(colorYAMLText(app.machSection, app.machFindQuery))
 	return app
 }
 
@@ -146,43 +146,6 @@ func (app App) machJumpTo(idx int) App {
 		fmt.Sprintf("  /%s  [%d/%d]  n/N: next/prev  Esc: clear", app.machFindQuery, idx+1, n),
 	)
 	return app
-}
-
-// machHighlightMatches returns the content with every occurrence of query
-// wrapped in a highlight style (case-insensitive).
-func machHighlightMatches(content, query string) string {
-	if query == "" {
-		return content
-	}
-	hl := lipgloss.NewStyle().
-		Background(lipgloss.Color("#fdcb6e")).
-		Foreground(lipgloss.Color("#0d1117")).
-		Bold(true)
-
-	q := strings.ToLower(query)
-	lines := strings.Split(content, "\n")
-	for i, line := range lines {
-		lower := strings.ToLower(line)
-		if !strings.Contains(lower, q) {
-			continue
-		}
-		var sb strings.Builder
-		rem := line
-		remLow := lower
-		for {
-			idx := strings.Index(remLow, q)
-			if idx < 0 {
-				sb.WriteString(rem)
-				break
-			}
-			sb.WriteString(rem[:idx])
-			sb.WriteString(hl.Render(rem[idx : idx+len(q)]))
-			rem = rem[idx+len(q):]
-			remLow = remLow[idx+len(q):]
-		}
-		lines[i] = sb.String()
-	}
-	return strings.Join(lines, "\n")
 }
 
 // ── render ────────────────────────────────────────────────────────────────────
