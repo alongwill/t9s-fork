@@ -26,7 +26,7 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			app.viewScrollStart = clampScrollStart(app.viewScrollStart, app.nodeCur, len(app.filteredNodes()), app.mainHeight()-2)
 		}
 
-	case "enter", "s":
+	case "s":
 		n := app.selectedNode()
 		if n == nil {
 			return app, nil
@@ -184,7 +184,7 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		app = app.goTo(StateProcesses)
 		return app, app.loadProcesses()
 
-	case "c":
+	case "enter", "c":
 		n := app.selectedNode()
 		if n == nil {
 			return app, nil

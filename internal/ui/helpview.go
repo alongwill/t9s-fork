@@ -49,7 +49,8 @@ func buildHelpContent() string {
 
 	sb.WriteString(section("Node List", [][2]string{
 		{"↑↓ / j k", "Navigate"},
-		{"↵ / s", "Services"},
+		{"↵ / c", "Containers"},
+		{"s", "Services"},
 		{"l", "Log streams"},
 		{"e", "Extensions (installed)"},
 		{"C", "Extension catalog"},
@@ -57,7 +58,6 @@ func buildHelpContent() string {
 		{"d", "Dmesg stream"},
 		{"t", "Metrics (CPU/RAM)"},
 		{"p", "Processes"},
-		{"c", "Containers"},
 		{"a", "Resource browser"},
 		{"ctrl+a", "All types palette (browser for the selected node)"},
 		{":", "Command mode (:nodes :net :addr :aliases :q :help)"},

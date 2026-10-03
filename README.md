@@ -171,8 +171,8 @@ t9s uses aliases to navigate most Talos resources — hit `?` at any time for th
 | Key | Action | | Key | Action |
 |-----|--------|-|-----|--------|
 | <kbd>↑</kbd><kbd>↓</kbd> / <kbd>j</kbd><kbd>k</kbd> | Navigate | | <kbd>t</kbd> | Metrics |
-| <kbd>Enter</kbd> / <kbd>s</kbd> | Services | | <kbd>p</kbd> | Processes |
-| <kbd>l</kbd> | Log Streams | | <kbd>c</kbd> | Containers |
+| <kbd>Enter</kbd> / <kbd>c</kbd> | Containers | | <kbd>p</kbd> | Processes |
+| <kbd>s</kbd> | Services | | <kbd>l</kbd> | Log Streams |
 | <kbd>e</kbd> | Extensions | | <kbd>a</kbd> | Resource browser |
 | <kbd>C</kbd> | Extension catalog | | <kbd>i</kbd> | Disks |
 | <kbd>m</kbd> | Machine config | | <kbd>d</kbd> | Dmesg |

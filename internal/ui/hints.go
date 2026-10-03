@@ -23,7 +23,8 @@ func stateHints(app App) []hint {
 	case StateNodeList:
 		return []hint{
 			{"↑↓", "Navigate"},
-			{"↵/s", "Services"},
+			{"↵/c", "Containers"},
+			{"s", "Services"},
 			{"l", "Log streams"},
 			{"a", "Resources"},
 			{"^a", "All types"},
