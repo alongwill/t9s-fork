@@ -243,7 +243,7 @@ The browser tries to answer four questions without leaving t9s: what is this res
 - **Keys explain themselves.** A browser key pressed where it does not work says where it does, naming the selected type: `W works on an instance list: press Enter on LinkStatuses first`.
 - **Tips.** A short tip about the browser or a Talos concept shows in the status line when the browser opens and when a category opens, if nothing else is shown. `:tips off` silences them for the session.
 
-The notes are in `internal/catalog/resource-notes.yaml` (about 40 types), written from the Talos source and skill references. Types without a note still show their definition fields and relationships.
+The notes are written from the Talos source and skill references. The source of truth is `knowledge/resource-notes.yaml` in the Talos skill (`agent-skills/talos`); `internal/catalog/resource-notes.yaml` is a generated copy. Edit the skill file, then run `hack/sync-resource-notes.sh` (`--check` fails when the copy is stale). Types without a note still show their definition fields and relationships.
 
 ### Log Streams
 

@@ -114,6 +114,9 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
   `nA->nB[style=…]` edges; controller to type = output, type to controller = input, `dotted` = weak input,
   edge label = resource ID). The CLI graph has no namespaces. Unparsable output gives `ErrNeedsGRPC`.
   Not yet checked against real output from a node.
+- **Notes source of truth** is the Talos skill (`agent-skills/talos/knowledge/resource-notes.yaml`). Never edit
+  `internal/catalog/resource-notes.yaml`: edit the skill copy, then run `hack/sync-resource-notes.sh`
+  (`--check` exits 1 when the copy is stale; `$TALOS_SKILL_DIR` overrides the skill path).
 - **Notes format** (`resource-notes.yaml`): a map keyed by display type (`LinkStatus`) with `what` (one sentence),
   optional `ubuntu`, optional `lookWhen` list. Source the text from the Talos source (`pkg/machinery/resources/`)
   and skill references; several upstream doc comments are copy-paste wrong, so check the Spec fields. A test
