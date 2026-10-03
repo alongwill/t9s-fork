@@ -160,6 +160,7 @@ func browserHelp(section func(string, [][2]string) string) string {
 		{paneCategories, "Resource Browser: lists (categories / types / instances)"},
 		{paneInstances, "Resource Browser: instances (extra keys)"},
 		{paneYAML, "Resource Browser: YAML pane"},
+		{paneDescribe, "Resource Browser: describe pane"},
 	}
 	var sb strings.Builder
 	seen := map[string]bool{}

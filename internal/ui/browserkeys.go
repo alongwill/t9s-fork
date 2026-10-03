@@ -55,6 +55,11 @@ func browserActionsFor(kind paneKind) []keyAction {
 		{keys: []string{"ctrl+b", "pgup"}, desc: "Page up", fn: pageAction(-1)},
 	}
 	switch kind {
+	case paneDescribe:
+		as = append(as,
+			keyAction{keys: []string{"y"}, desc: "YAML", visible: true, fn: (App).describeToYAML},
+			keyAction{keys: []string{"d"}, desc: "Back (toggle describe)", visible: true, fn: func(app App) (App, tea.Cmd) { return app.popPane(), nil }},
+		)
 	case paneYAML:
 		as = append(as,
 			keyAction{keys: []string{"/"}, desc: "Find", visible: true, fn: func(app App) (App, tea.Cmd) { return app.openPrompt(promptFind) }},
@@ -73,6 +78,9 @@ func browserActionsFor(kind paneKind) []keyAction {
 		)
 		if kind == paneInstances {
 			as = append(as, keyAction{keys: []string{"y"}, desc: "YAML", visible: true, fn: (App).browserEnter})
+		}
+		if kind == paneTypes || kind == paneInstances {
+			as = append(as, keyAction{keys: []string{"d"}, desc: "Describe", visible: true, fn: (App).openDescribe})
 		}
 	}
 	return append(as,
@@ -115,7 +123,7 @@ func (app App) browserMove(delta int) App {
 	n := app.paneLen(p)
 	rows := app.paneInnerRows(p.kind)
 	app.browser = app.browser.withTop(func(p *pane) {
-		if p.kind == paneYAML {
+		if p.kind == paneYAML || p.kind == paneDescribe {
 			p.scroll = clamp(p.scroll+delta, 0, max(0, n-rows))
 			return
 		}
@@ -489,6 +497,8 @@ func (app App) browserReload() (App, tea.Cmd) {
 		app.browser = b.withTop(func(p *pane) { p.loading, p.err = true, "" })
 		return app, app.loadInstances(p.def)
 
+	case paneDescribe:
+		return app, nil
 	case paneYAML:
 		if p.cfgKind != "" {
 			return app.reloadConfig(nil)

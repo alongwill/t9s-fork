@@ -62,6 +62,8 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 		body = app.instanceLines(p, iw, inner, active)
 	case paneYAML:
 		body = app.yamlLines(p, iw, inner)
+	case paneDescribe:
+		body = app.describeLines(p, iw, inner)
 	}
 
 	lines := make([]string, 0, h)

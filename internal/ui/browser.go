@@ -25,6 +25,7 @@ const (
 	paneTypes
 	paneInstances
 	paneYAML
+	paneDescribe
 )
 
 // Count sentinels in browser.counts (missing key = not loaded yet).
@@ -46,6 +47,7 @@ type pane struct {
 	items    []talos.ResourceMeta // paneInstances
 	yaml     string               // paneYAML
 	cfgKind  string               // paneInstances, paneYAML: set when showing config documents
+	desc     []descLine           // paneDescribe
 	loading  bool
 	err      string
 }
@@ -314,6 +316,9 @@ const (
 
 type paneBox struct{ idx, w int }
 
+// isFlexPane reports panes that take the space the list panes leave over.
+func isFlexPane(k paneKind) bool { return k == paneYAML || k == paneDescribe }
+
 func fixedWidth(k paneKind) int {
 	switch k {
 	case paneCategories:
@@ -354,7 +359,7 @@ func (app App) browserLayout() []paneBox {
 			}
 			last := st[n-1]
 			w := rest
-			if last.kind != paneYAML {
+			if !isFlexPane(last.kind) {
 				w = min(rest, fixedWidth(last.kind))
 			}
 			if w < 4 {
@@ -481,6 +486,8 @@ func (app App) paneLen(p pane) int {
 		return len(filterInstances(p.items, p.filter))
 	case paneYAML:
 		return len(yamlVisual(p.yaml, app.yamlInnerWidth(), b.wrap))
+	case paneDescribe:
+		return app.paneDescribeLen(p)
 	}
 	return 0
 }
@@ -497,6 +504,8 @@ func (app App) breadcrumb() string {
 			parts = append(parts, p.title)
 		case paneYAML:
 			parts = append(parts, p.meta.ID)
+		case paneDescribe:
+			parts = append(parts, "describe")
 		}
 	}
 	return strings.Join(parts, " > ")
