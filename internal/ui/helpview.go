@@ -171,6 +171,7 @@ func browserHelp(section func(string, [][2]string) string) string {
 		{paneInstances, "Resource Browser: instances (extra keys)"},
 		{paneYAML, "Resource Browser: YAML pane"},
 		{paneDescribe, "Resource Browser: describe pane"},
+		{paneRelated, "Resource Browser: related view (p)"},
 		{paneCompare, "Resource Browser: compare nodes (c)"},
 		{paneDiff, "Resource Browser: diff pane"},
 	}

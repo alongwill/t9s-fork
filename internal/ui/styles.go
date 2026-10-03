@@ -143,3 +143,37 @@ func containsAny(s string, subs ...string) bool {
 	}
 	return false
 }
+
+// Role colours: the three layers of a pipeline (Config → Spec → Status) look the
+// same everywhere they appear (related view, types pane). AdaptiveColor keeps
+// them readable on light terminals.
+var (
+	colorRoleConfig  = lipgloss.AdaptiveColor{Light: "#8250df", Dark: "#bc8cff"} // magenta / purple
+	colorRoleSpec    = lipgloss.AdaptiveColor{Light: "#0969da", Dark: "#58a6ff"} // blue
+	colorRoleStatus  = lipgloss.AdaptiveColor{Light: "#1a7f37", Dark: "#3fb950"} // green
+	colorRoleOther   = lipgloss.AdaptiveColor{Light: "#6e7781", Dark: "#8b949e"} // grey
+	colorOnAccent    = lipgloss.AdaptiveColor{Light: "#ffffff", Dark: "#0d1117"} // text on a coloured chip
+	colorMarkAccent  = lipgloss.AdaptiveColor{Light: "#9a6700", Dark: "#e3b341"} // marked cell, highlighted box
+	colorLockAccent  = lipgloss.AdaptiveColor{Light: "#cf222e", Dark: "#ff7b72"}
+	colorBorderQuiet = lipgloss.AdaptiveColor{Light: "#afb8c1", Dark: "#444c56"}
+)
+
+func roleColor(r relRole) lipgloss.AdaptiveColor {
+	switch r {
+	case roleConfig:
+		return colorRoleConfig
+	case roleSpec:
+		return colorRoleSpec
+	case roleStatus:
+		return colorRoleStatus
+	}
+	return colorRoleOther
+}
+
+// roleStyle is the foreground style of a role.
+func roleStyle(r relRole) lipgloss.Style { return lipgloss.NewStyle().Foreground(roleColor(r)) }
+
+// chip is a small coloured badge: ` text ` on a background.
+func chip(text string, bg lipgloss.TerminalColor) string {
+	return lipgloss.NewStyle().Background(bg).Foreground(colorOnAccent).Bold(true).Padding(0, 1).Render(text)
+}

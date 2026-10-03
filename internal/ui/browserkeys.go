@@ -46,6 +46,9 @@ func pageAction(dir int) func(App) (App, tea.Cmd) {
 // browserActionsFor returns the key table for a pane kind. It is a pure
 // function (no App) so the help overlay can list every table.
 func browserActionsFor(kind paneKind) []keyAction {
+	if kind == paneRelated {
+		return relatedActions()
+	}
 	as := []keyAction{
 		{keys: []string{"up", "k"}, label: "↑↓", desc: "Navigate", visible: true, fn: moveAction(-1)},
 		{keys: []string{"down", "j"}, desc: "Move down", fn: moveAction(1)},
@@ -97,6 +100,11 @@ func browserActionsFor(kind paneKind) []keyAction {
 	if kind == paneTypes || kind == paneInstances || kind == paneYAML || kind == paneDescribe {
 		as = append(as,
 			keyAction{keys: []string{"W"}, desc: "Live watch on/off (gRPC)", visible: kind == paneInstances, fn: (App).watchPress},
+		)
+	}
+	if kind == paneTypes || kind == paneInstances || kind == paneYAML || kind == paneDescribe {
+		as = append(as,
+			keyAction{keys: []string{"p"}, desc: "Related resources (pipeline and family)", visible: true, fn: (App).openRelated},
 		)
 	}
 	if kind == paneTypes || kind == paneInstances || kind == paneYAML {
@@ -157,7 +165,7 @@ type browserKey struct {
 var browserKeyTable = []browserKey{
 	{"d", []paneKind{paneTypes, paneInstances, paneDescribe}, "a type or instance list", "open a category first"},
 	{"y", []paneKind{paneInstances, paneDescribe}, "an instance list", "Enter on a type first"},
-	{"c", []paneKind{paneTypes, paneInstances, paneYAML}, "a type, an instance list or a YAML pane", "open a category first"},
+	{"c", []paneKind{paneTypes, paneInstances, paneYAML, paneRelated}, "a type, an instance list, a YAML pane or the related table", "open a category first"},
 	{"W", []paneKind{paneTypes, paneInstances, paneYAML, paneDescribe}, "an instance list (gRPC source)", "Enter on a type first"},
 	{"w", []paneKind{paneYAML}, "the YAML pane", "open an instance first"},
 	{"f", []paneKind{paneYAML}, "the YAML pane", "open an instance first"},
@@ -313,6 +321,9 @@ func (app App) browserBack() (App, tea.Cmd) {
 	if p.kind == paneYAML && app.browser.find != "" {
 		app.browser = app.browser.clearFind()
 		return app, nil
+	}
+	if p.kind == paneRelated && len(p.rel.marks) > 0 {
+		return app.relClearMarks(), nil
 	}
 	if p.kind != paneYAML && p.filter != "" {
 		app.browser = app.browser.withTop(func(p *pane) { p.filter, p.cur, p.scroll = "", 0, 0 })
@@ -656,6 +667,8 @@ func (app App) browserReload() (App, tea.Cmd) {
 		return app.reloadDeps()
 	case paneDiff:
 		return app, nil
+	case paneRelated:
+		return app.reloadRelated()
 	case paneCompare:
 		return app.reloadCompare()
 	case paneAliases:
@@ -688,4 +701,31 @@ func (app App) reloadConfig(extra tea.Cmd) (App, tea.Cmd) {
 	app = app.dropConfigCache()
 	app.browser.cfgState, app.browser.cfgErr = cfgLoading, ""
 	return app, tea.Batch(extra, app.loadConfigDocs())
+}
+
+// relatedActions is the key table of the related view.
+func relatedActions() []keyAction {
+	dir := func(dx, dy int) func(App) (App, tea.Cmd) {
+		return func(app App) (App, tea.Cmd) { return app.relDir(dx, dy) }
+	}
+	return []keyAction{
+		{keys: []string{"left", "h"}, label: "←→", desc: "Move left", visible: true, fn: dir(-1, 0)},
+		{keys: []string{"right", "l"}, desc: "Move right", fn: dir(1, 0)},
+		{keys: []string{"up", "k"}, label: "↑↓", desc: "Move up", visible: true, fn: dir(0, -1)},
+		{keys: []string{"down", "j"}, desc: "Move down", fn: dir(0, 1)},
+		{keys: []string{"g", "home"}, desc: "Table: first row", fn: func(app App) (App, tea.Cmd) { return app.relEdge(true) }},
+		{keys: []string{"G", "end"}, desc: "Table: last row", fn: func(app App) (App, tea.Cmd) { return app.relEdge(false) }},
+		{keys: []string{"tab"}, desc: "Switch between pipeline and table", visible: true, fn: (App).relFocusSwitch},
+		{keys: []string{"enter"}, label: "↵", desc: "Pipeline: open the type · table: open the YAML", visible: true, fn: (App).relEnter},
+		{keys: []string{" ", "space"}, label: "space", desc: "Table: mark a cell (two at most)", visible: true, fn: (App).relMarkToggle},
+		{keys: []string{"c"}, desc: "Table: diff the two marked cells", visible: true, fn: (App).relDiff},
+		{keys: []string{"ctrl+a"}, label: "^a", desc: "All types (aliases palette)", visible: true, fn: (App).openPalette},
+		{keys: []string{":"}, desc: "Command mode (:nodes :net :addr :q)", fn: (App).openCommandPrompt},
+		{keys: []string{"esc", "q"}, label: "Esc/q", desc: "Back (clears marks first)", visible: true, fn: (App).browserBack},
+		{keys: []string{"ctrl+r"}, label: "^r", desc: "Reload", visible: true, fn: (App).browserReload},
+		{keys: []string{"ctrl+c"}, desc: "Quit", fn: func(app App) (App, tea.Cmd) {
+			app.cleanup()
+			return app, tea.Quit
+		}},
+	}
 }

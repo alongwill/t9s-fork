@@ -74,6 +74,8 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 		body = app.compareLines(p, iw, inner, active)
 	case paneDiff:
 		body = app.diffPaneLines(p, iw, inner)
+	case paneRelated:
+		body = app.relatedLines(p, iw, inner, active)
 	}
 
 	lines := make([]string, 0, h)
@@ -104,7 +106,12 @@ func (app App) paneTitle(p pane) string {
 	case paneCompare:
 		return p.title + "  (* = browser node)"
 	case paneDiff:
+		if p.legend != "" {
+			return p.title + "  " + p.legend
+		}
 		return p.title + "  (- browser node, + other)"
+	case paneRelated:
+		return p.title
 	case paneInstances:
 		if p.loading {
 			return p.title

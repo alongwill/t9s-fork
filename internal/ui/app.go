@@ -349,7 +349,13 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return app.handleResourceDefs(msg)
 
 	case depsMsg:
-		return app.handleDeps(msg), nil
+		return app.handleDeps(msg).afterDeps()
+
+	case relListMsg:
+		return app.handleRelList(msg), nil
+
+	case relYAMLMsg:
+		return app.handleRelYAML(msg), nil
 
 	case resourceCountMsg:
 		return app.handleResourceCount(msg), nil

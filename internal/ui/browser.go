@@ -30,6 +30,7 @@ const (
 	paneAliases // ctrl+a palette
 	paneCompare // c: same resource on every node
 	paneDiff    // enter on a compare row: unified diff
+	paneRelated // p: pipeline and family of a type
 )
 
 // Count sentinels in browser.counts (missing key = not loaded yet).
@@ -54,6 +55,8 @@ type pane struct {
 	sub      descSubject          // paneDescribe
 	cmp      compareView          // paneCompare
 	diff     []diffLine           // paneDiff
+	legend   string               // paneDiff: replaces the compare legend in the title
+	rel      relatedView          // paneRelated
 	loading  bool
 	err      string
 }
@@ -347,7 +350,7 @@ func (app App) browserLayout() []paneBox {
 	if n == 0 {
 		return nil
 	}
-	if k := st[n-1].kind; k == paneAliases || k == paneCompare || k == paneDiff { // whole width
+	if k := st[n-1].kind; k == paneAliases || k == paneCompare || k == paneDiff || k == paneRelated { // whole width
 		return []paneBox{{n - 1, app.width}}
 	}
 	if app.browser.fullscreen && st[n-1].kind == paneYAML {
@@ -358,6 +361,12 @@ func (app App) browserLayout() []paneBox {
 		maxPanes = 3
 	}
 	first := max(0, n-maxPanes)
+	for i := n - 2; i >= 0; i-- { // a related view is whole-width: never show it beside another pane
+		if st[i].kind == paneRelated {
+			first = max(first, i+1)
+			break
+		}
+	}
 	for {
 		used := 0
 		for i := first; i < n-1; i++ {
