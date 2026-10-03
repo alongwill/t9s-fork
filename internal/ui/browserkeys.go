@@ -93,14 +93,14 @@ func browserActionsFor(kind paneKind) []keyAction {
 			as = append(as, keyAction{keys: []string{"d"}, desc: "Describe", visible: true, fn: (App).openDescribe})
 		}
 	}
-	if kind == paneInstances || kind == paneYAML || kind == paneDescribe {
+	if kind == paneTypes || kind == paneInstances || kind == paneYAML || kind == paneDescribe {
 		as = append(as,
-			keyAction{keys: []string{"W"}, desc: "Live watch on/off (gRPC)", visible: kind == paneInstances, fn: (App).toggleWatch},
+			keyAction{keys: []string{"W"}, desc: "Live watch on/off (gRPC)", visible: kind == paneInstances, fn: (App).watchPress},
 		)
 	}
 	if kind == paneTypes || kind == paneInstances || kind == paneYAML {
 		as = append(as,
-			keyAction{keys: []string{"c"}, desc: "Compare on all nodes", visible: true, fn: (App).openCompare},
+			keyAction{keys: []string{"c"}, desc: "Compare on all nodes", visible: true, fn: (App).comparePress},
 		)
 	}
 	if kind != paneAliases && kind != paneCompare && kind != paneDiff {
@@ -136,7 +136,123 @@ func (app App) handleBrowserKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			}
 		}
 	}
+	if note, ok := app.unboundKeyNote(s); ok {
+		app.statusMsg = dimStyle.Render(note)
+	}
 	return app, nil
+}
+
+// browserKey documents a key that only works in some panes, so pressing it
+// elsewhere can say where it does work instead of doing nothing.
+type browserKey struct {
+	key   string
+	panes []paneKind // the panes whose table binds it
+	what  string     // "an instance list": where it works
+	how   string     // how to get there from the types pane
+}
+
+// browserKeyTable lists every pane-specific browser key. A test checks it
+// against browserActionsFor so it cannot drift from the real bindings.
+var browserKeyTable = []browserKey{
+	{"d", []paneKind{paneTypes, paneInstances, paneDescribe}, "a type or instance list", "open a category first"},
+	{"y", []paneKind{paneInstances, paneDescribe}, "an instance list", "Enter on a type first"},
+	{"c", []paneKind{paneTypes, paneInstances, paneYAML}, "a type, an instance list or a YAML pane", "open a category first"},
+	{"W", []paneKind{paneTypes, paneInstances, paneYAML, paneDescribe}, "an instance list (gRPC source)", "Enter on a type first"},
+	{"w", []paneKind{paneYAML}, "the YAML pane", "open an instance first"},
+	{"f", []paneKind{paneYAML}, "the YAML pane", "open an instance first"},
+	{"n", []paneKind{paneYAML}, "the YAML pane, after / search", "open an instance first"},
+	{"N", []paneKind{paneYAML}, "the YAML pane, after / search", "open an instance first"},
+	{"/", []paneKind{paneCategories, paneTypes, paneInstances, paneYAML}, "a list or the YAML pane", "go back to a list"},
+}
+
+// unboundKeyNote explains a browser key pressed in a pane where it is not
+// bound. ok is false for keys that are not in the table.
+func (app App) unboundKeyNote(s string) (string, bool) {
+	p, ok := app.browser.top()
+	if !ok {
+		return "", false
+	}
+	for _, k := range browserKeyTable {
+		if k.key != s {
+			continue
+		}
+		note := fmt.Sprintf("%s works on %s", k.key, k.what)
+		if p.kind == paneTypes {
+			if name := app.selectedTypeName(p); name != "" && strings.Contains(k.how, "Enter on a type") {
+				return fmt.Sprintf("%s: press Enter on %s first", note, name), true
+			}
+		}
+		return fmt.Sprintf("%s (%s)", note, k.how), true
+	}
+	return "", false
+}
+
+// selectedTypeName is the display name of the types-pane row under the cursor.
+func (app App) selectedTypeName(p pane) string {
+	rows := app.browser.typeEntries(p.category, p.filter)
+	if p.cur >= len(rows) {
+		return ""
+	}
+	return rows[p.cur].name()
+}
+
+// keyOnType implements `c` and `W` on a types-pane row: open the instance list
+// as Enter would, then say what to press next. ok is false when the key should
+// take its normal path (not a resource row, or nothing to open).
+func (app App) keyOnType(letter string) (App, tea.Cmd, bool) {
+	p, ok := app.browser.top()
+	if !ok || p.kind != paneTypes {
+		return app, nil, false
+	}
+	rows := app.browser.typeEntries(p.category, p.filter)
+	if p.cur >= len(rows) || rows[p.cur].config {
+		return app, nil, false
+	}
+	d := rows[p.cur].def
+	n, counted := app.browser.counts[d.Type]
+	if !counted || n < 1 {
+		return app, nil, false // openType's own message says why
+	}
+	if letter == "c" && n == 1 {
+		return app, nil, false // compareSubjectFor handles a single instance
+	}
+	if letter == "W" && !app.hasWatch() {
+		return app, nil, false
+	}
+	depth := len(app.browser.stack)
+	app, cmd := app.openType(d)
+	if len(app.browser.stack) > depth {
+		if n == 1 {
+			app.statusMsg = dimStyle.Render("press " + letter + " here")
+		} else {
+			app.statusMsg = dimStyle.Render("pick one, then press " + letter)
+		}
+	}
+	return app, cmd, true
+}
+
+func (app App) comparePress() (App, tea.Cmd) {
+	if a, cmd, ok := app.keyOnType("c"); ok {
+		return a, cmd
+	}
+	return app.openCompare()
+}
+
+func (app App) watchPress() (App, tea.Cmd) {
+	if a, cmd, ok := app.keyOnType("W"); ok {
+		return a, cmd
+	}
+	if p, ok := app.browser.top(); ok && p.kind == paneTypes { // not a resource row with instances
+		if !app.hasWatch() {
+			app.statusMsg = warnStyle.Render("watch needs the gRPC source")
+			return app, nil
+		}
+		if note, ok := app.unboundKeyNote("W"); ok {
+			app.statusMsg = dimStyle.Render(note)
+		}
+		return app, nil
+	}
+	return app.toggleWatch()
 }
 
 // --- movement ---
