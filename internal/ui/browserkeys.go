@@ -107,6 +107,11 @@ func browserActionsFor(kind paneKind) []keyAction {
 			keyAction{keys: []string{"p"}, desc: "Related resources (pipeline and family)", visible: true, fn: (App).openRelated},
 		)
 	}
+	if kind == paneInstances || kind == paneYAML || kind == paneDescribe {
+		as = append(as,
+			keyAction{keys: []string{"J"}, desc: "Jump to what the writer controller reads", visible: kind != paneDescribe, fn: (App).jumpToWriter},
+		)
+	}
 	if kind == paneTypes || kind == paneInstances || kind == paneYAML {
 		as = append(as,
 			keyAction{keys: []string{"c"}, desc: "Compare on all nodes", visible: true, fn: (App).comparePress},

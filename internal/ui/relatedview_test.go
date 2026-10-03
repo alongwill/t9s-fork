@@ -318,3 +318,44 @@ func TestRelatedTableScrollsToLastRowAtSmallSize(t *testing.T) {
 		t.Errorf("last row not visible after G:\n%s", out)
 	}
 }
+
+// instApp is relApp's browser with a LinkStatus instance list on top.
+func instApp(owner string) App {
+	app := relApp(200, 50)
+	app, _ = app.handleKey(key("esc")) // back to the types pane
+	def := relNetDef(tLinkStatus, "LinkStatus")
+	m := talos.ResourceMeta{Namespace: "network", Type: tLinkStatus, ID: "eth0", Owner: owner}
+	app.browser = app.browser.push(pane{kind: paneInstances, title: "LinkStatus", def: def, items: []talos.ResourceMeta{m}})
+	return app.syncBrowserState()
+}
+
+func TestJumpToWriterSingleInputJumpsThere(t *testing.T) {
+	// LinkSpecController reads only LinkSpecs and LinkStatuses (as inputs): extend with a one-input controller
+	app := instApp("network.NodeAddressController") // reads AddressStatuses only
+	app = press(t, app, "J")
+	top, _ := app.browser.top()
+	if top.kind != paneInstances || top.def.Type != tAddrStatus {
+		t.Fatalf("top = %+v, want AddressStatus instances", top)
+	}
+}
+
+func TestJumpToWriterSeveralInputsOpensRelatedHighlighted(t *testing.T) {
+	app := instApp("network.AddressSpecController") // reads AddressSpecs and LinkStatuses
+	app = press(t, app, "J")
+	p, ok := app.relPane()
+	if !ok || !p.rel.hi[tAddrSpec] || !p.rel.hi[tLinkStatus] || p.rel.hiNote == "" {
+		t.Fatalf("related view not opened with highlights: ok=%v %+v", ok, p.rel.hi)
+	}
+	checkBudget(t, app, 200)
+}
+
+func TestJumpToWriterExplainsWhenThereIsNoOwner(t *testing.T) {
+	app := instApp("")
+	app = press(t, app, "J")
+	if !strings.Contains(app.statusMsg, "no owner controller") {
+		t.Errorf("status = %q", app.statusMsg)
+	}
+	if top, _ := app.browser.top(); top.kind != paneInstances {
+		t.Error("J without an owner must not move")
+	}
+}
