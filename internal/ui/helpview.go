@@ -130,7 +130,23 @@ func buildHelpContent() string {
 	}))
 	sb.WriteByte('\n')
 
-	sb.WriteString(section("Extensions / Metrics / Processes / Containers / Disks / Addresses", [][2]string{
+	sb.WriteString(section("Containers", [][2]string{
+		{"↑↓ / j k", "Navigate"},
+		{"↵", "Container detail"},
+		{"w", "Wrap"},
+		{"r", "Refresh"},
+		{"Esc / q", "Back"},
+	}))
+	sb.WriteByte('\n')
+
+	sb.WriteString(section("Container detail", [][2]string{
+		{"l", "Live logs of this container (Esc returns here)"},
+		{"r", "Reload stats, processes and logs"},
+		{"Esc / q", "Back to the containers list"},
+	}))
+	sb.WriteByte('\n')
+
+	sb.WriteString(section("Extensions / Metrics / Processes / Disks / Addresses", [][2]string{
 		{"↑↓ / j k", "Navigate"},
 		{"r", "Refresh"},
 		{"Esc / q", "Back"},

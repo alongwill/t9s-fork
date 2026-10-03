@@ -19,6 +19,7 @@ See `.claude/SKILL.md` for the talosctl output contract, v1.14 changes and how t
 ```
 cmd/main.go                    CLI flags, bubbletea.NewProgram setup, version injection
 internal/config/config.go      talosconfig loader (~/.talos/config or $TALOSCONFIG)
+internal/talos/container.go    CRI ID + image ref parsing, container stats/logs, node memory
 internal/talos/types.go        Data types: Node, Service, DiskInfo, ContainerInfo, ProcessInfo, AddressInfo, …
 internal/talos/client.go       talosctl subprocess wrappers, parseNDJSON generic, parseContainerLines
 internal/ui/app.go             App struct + Init/Update/View (1100 lines)
@@ -28,7 +29,11 @@ internal/ui/styles.go          Lipgloss palette and shared styles
 internal/ui/hints.go           Context-sensitive hint bar (bottom of screen)
 internal/ui/nodelist.go        renderNodeList
 internal/ui/services.go        renderServices
-internal/ui/logs.go            renderLogs + streaming
+internal/ui/logs.go            logs key handling, find bar, renderLinesCursor (dmesg/health)
+internal/ui/logview.go         logs view: layout, Autoscroll/FullScreen/Timestamps/Wrap, styled lines
+internal/ui/logfmt.go          log timestamp parsing, level/key colour spans
+internal/ui/logstyles.go       log colour styles (built from styles.go palette)
+internal/ui/containerdetail.go container detail view (Enter on a container)
 internal/ui/dmesg.go           renderDmesg + streaming
 internal/ui/machineconfig.go   renderMachineConfig (YAML viewer)
 internal/ui/extensions.go      renderExtensions

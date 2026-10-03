@@ -127,3 +127,20 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
 - Node-list `a` is the browser; the addresses view moved to `A`.
 - `lipgloss` emits no escapes in tests unless you call `lipgloss.SetColorProfile(termenv.ANSI256)`
   (restore it after). `TestRenderBrowserGreyedRowIsDim` shows the pattern.
+
+## Logs and container detail (branch feat/logs-members-containers)
+
+- Member IP: `pickMemberIP` (`internal/talos/client.go`): exact match with the responding `node`, else the last IPv4
+  (a VIP is listed first), else the last non-link-local address, else the last address.
+- Node list `Enter` = containers (was services); `s` = services.
+- Logs state lives in `App.log*` (`logNoFollow` zero value = Autoscroll on, `logTop`, `logFrozenN`, `logFull`, `logTS`,
+  `logWrap`, `logArrived`). `logview.go` renders from a `logLayout`; `logfmt.go` finds timestamps/levels. All times are UTC;
+  a line without its own timestamp shows its arrival time with a `~`.
+- Container detail: `StateContainerDetail`, `internal/ui/containerdetail.go`. Loads carry `detail.seq`; stale ones are
+  dropped. The logs view returns to it through `logOrigin`.
+- `stats` prints a `└─` tree marker before pod children, like `containers`: `parseStatsLines` skips it (the older
+  `GetStats` does not).
+- CRI container ID: `namespace/pod` (sandbox) or `namespace/pod:container:id12`. Logs and stats for it need
+  `--namespace=cri` (`-k` before 1.14): `Client.namespaceArgs`.
+- `memory` prints `NODE TOTAL USED …` in MB: `GetNodeMemoryTotalMB`.
+- Hook gotcha: a Bash heredoc that contains the CLI binary name is blocked too. Write such files with the Write tool.

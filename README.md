@@ -285,6 +285,28 @@ The level word is coloured (`ERROR` red, `WARN` yellow, `INFO` blue, `DEBUG` dim
 | <kbd>g</kbd> / <kbd>G</kbd> | Top / bottom |
 | <kbd>Esc</kbd> / <kbd>q</kbd> | Back |
 
+### Containers
+
+| Key | Action |
+|-----|--------|
+| <kbd>↑</kbd><kbd>↓</kbd> / <kbd>j</kbd><kbd>k</kbd> | Navigate |
+| <kbd>Enter</kbd> | Container detail |
+| <kbd>w</kbd> | Wrap the image column |
+| <kbd>r</kbd> | Refresh |
+| <kbd>Esc</kbd> / <kbd>q</kbd> | Back to the node list |
+
+### Container detail
+
+A rounded box with the container ID, pod namespace / pod / container (parsed from the CRI ID `namespace/pod:container:id`), the image split into registry, repository, **tag** and digest, PID, status and containerd namespace. Below it: CPU time and memory (a bar against the node's total memory when known), the process row for the container's PID, and the last 30 log lines with the same level colours as the logs view. The four loads run concurrently with a 10 s timeout each; a section that fails shows its own error line.
+
+| Key | Action |
+|-----|--------|
+| <kbd>l</kbd> | Live logs of this container (<kbd>Esc</kbd> comes back here) |
+| <kbd>r</kbd> | Reload |
+| <kbd>Esc</kbd> / <kbd>q</kbd> | Back to the containers list, cursor kept |
+
+`processes` has no parent-PID column, so only the row with the container's own PID is shown, not its children. A pod sandbox row has no logs.
+
 ### Upgrade
 
 | Key | Action |
@@ -301,7 +323,7 @@ The level word is coloured (`ERROR` red, `WARN` yellow, `INFO` blue, `DEBUG` dim
 
 | View | Key | What it shows |
 |------|-----|---------------|
-| Nodes | *default* | Members — Talos + K8s version, role, status |
+| Nodes | *default* | Members — Talos + K8s version, role, status. <kbd>Enter</kbd> opens its containers |
 | Services | <kbd>s</kbd> | Service state and health. <kbd>Enter</kbd> or <kbd>l</kbd> opens that service's live logs |
 | Log Streams | <kbd>l</kbd> | Node log targets discovered from talosctl completion |
 | Logs | <kbd>Enter</kbd> | Live logs for the selected service or log stream |
