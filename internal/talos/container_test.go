@@ -67,3 +67,12 @@ func TestParseMemoryTotalMB(t *testing.T) {
 		t.Error("header-only output parsed")
 	}
 }
+
+func TestStripNodePrefix(t *testing.T) {
+	if got := StripNodePrefix("172.30.0.2", "172.30.0.2: 2026/10/03 hello"); got != "2026/10/03 hello" {
+		t.Errorf("got %q", got)
+	}
+	if got := StripNodePrefix("172.30.0.2", "no prefix"); got != "no prefix" {
+		t.Errorf("got %q", got)
+	}
+}

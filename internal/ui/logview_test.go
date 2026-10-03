@@ -391,3 +391,26 @@ func TestLogNormalHeightBudget(t *testing.T) {
 		}
 	}
 }
+
+// Real lines from a 1.14 node: CRI framing around a klog line, and an apid line.
+func TestLogRealCRIAndApidLines(t *testing.T) {
+	cri := "2026-10-03T16:31:07.93022477Z stderr F I1003 16:31:07.930134       1 cidrallocator.go:278] updated ClusterIP allocator"
+	if got := logTimestamp(cri, time.Time{}); got != " 2026-10-03T16:31:07.930" {
+		t.Errorf("cri timestamp = %q", got)
+	}
+	spans, dim := logSpans(cri)
+	rs := []rune(cri)
+	found := false
+	for _, sp := range spans {
+		if sp.kind == spanInfo && string(rs[sp.a:sp.b]) == "I1003" {
+			found = true
+		}
+	}
+	if !found || dim {
+		t.Errorf("klog level after the CRI prefix not found: %+v", spans)
+	}
+	apid := "2026/10/03 17:11:49.939310 log.go:118: OK [/cosi.resource.State/List] 4.7ms stream Success"
+	if got := logTimestamp(apid, time.Time{}); got != " 2026-10-03T17:11:49.939" {
+		t.Errorf("apid timestamp = %q", got)
+	}
+}

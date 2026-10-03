@@ -158,7 +158,11 @@ func (c *Client) GetContainerLogs(ctx context.Context, node, namespace, id strin
 	if text == "" {
 		return nil, nil
 	}
-	return strings.Split(text, "\n"), nil
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		lines[i] = StripNodePrefix(node, l)
+	}
+	return lines, nil
 }
 
 // StreamContainerLogs follows a container's logs, like StreamLogs but in the
@@ -181,7 +185,7 @@ func (c *Client) StreamContainerLogs(ctx context.Context, node, namespace, id st
 		case <-ctx.Done():
 			cmd.Process.Kill() //nolint:errcheck
 			return
-		case ch <- scanner.Text():
+		case ch <- StripNodePrefix(node, scanner.Text()):
 		}
 	}
 	cmd.Wait() //nolint:errcheck

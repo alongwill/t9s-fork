@@ -21,10 +21,10 @@ var (
 	reTSJSON  = regexp.MustCompile(`"(?:ts|time|timestamp)"\s*:\s*("[^"]+"|\d+(?:\.\d+)?)`)
 	reTSRFC   = regexp.MustCompile(`\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?`)
 	reTSGo    = regexp.MustCompile(`\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?`)
-	reTSKlog  = regexp.MustCompile(`^[EWIDF](\d{2})(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?`)
+	reTSKlog  = regexp.MustCompile(`(?:^|\s)[EWIDF](\d{2})(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?`)
 	reLvlKV   = regexp.MustCompile(`(?i)["']?(?:level|lvl|severity)["']?\s*[=:]\s*["']?(error|err|fatal|crit|critical|warn|warning|info|debug|trace)\b`)
 	reLvlBrk  = regexp.MustCompile(`\[(?:ERROR|FATAL|CRIT|CRITICAL|WARN|WARNING|INFO|DEBUG|TRACE|error|fatal|crit|warn|warning|info|debug|trace)\]`)
-	reLvlKlog = regexp.MustCompile(`^[EWIDF]\d{4}\b`)
+	reLvlKlog = regexp.MustCompile(`(?:^|\s)[EWIDF]\d{4} \d{2}:\d{2}:\d{2}`)
 	reLvlWord = regexp.MustCompile(`\b(?:ERROR|FATAL|CRIT|CRITICAL|WARN|WARNING|INFO|DEBUG|TRACE|error|fatal|crit|warn|warning|info|debug|trace)\b`)
 	reKey     = regexp.MustCompile(`(?:^|[\s{,])([A-Za-z_][A-Za-z0-9_.\-]*)=`)
 )
@@ -65,7 +65,17 @@ func parseLineTimestamp(line string, ref time.Time) (t time.Time, s, e int, ok b
 			return pt, m[0], m[1], true
 		}
 	}
-	if m := reTSKlog.FindStringSubmatch(line); m != nil {
+	if loc := reTSKlog.FindStringSubmatchIndex(line); loc != nil {
+		m := make([]string, len(loc)/2)
+		for i := range m {
+			if loc[2*i] >= 0 {
+				m[i] = line[loc[2*i]:loc[2*i+1]]
+			}
+		}
+		tok := loc[0]
+		if line[tok] == ' ' || line[tok] == '\t' {
+			tok++
+		}
 		year := ref.UTC().Year()
 		if ref.IsZero() {
 			year = time.Now().UTC().Year()
@@ -82,8 +92,8 @@ func parseLineTimestamp(line string, ref time.Time) (t time.Time, s, e int, ok b
 		}
 		pt := time.Date(year, time.Month(mon), day, hh, mm, ss, ns, time.UTC)
 		if pt.Month() == time.Month(mon) && pt.Day() == day {
-			// The timestamp part starts after the 5 character level+date token.
-			return pt, 6, len(m[0]), true
+			// The time starts after the 5 character level+date token.
+			return pt, tok + 6, loc[1], true
 		}
 	}
 	return time.Time{}, 0, 0, false
@@ -180,7 +190,11 @@ func logSpans(line string) (spans []logSpan, dim bool) {
 	}
 	if !found {
 		if m := reLvlKlog.FindStringIndex(line); m != nil {
-			switch line[0] {
+			tok := m[0]
+			if line[tok] == ' ' || line[tok] == '\t' {
+				tok++
+			}
+			switch line[tok] {
 			case 'E', 'F':
 				lvl, found = spanErr, true
 			case 'W':
@@ -191,7 +205,7 @@ func logSpans(line string) (spans []logSpan, dim bool) {
 				lvl, found = spanDebug, true
 			}
 			if found {
-				add(m[0], m[1], lvl)
+				add(tok, tok+5, lvl)
 			}
 		}
 	}

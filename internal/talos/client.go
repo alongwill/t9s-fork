@@ -304,10 +304,15 @@ func (c *Client) StreamLogs(ctx context.Context, node, service string, ch chan<-
 		case <-ctx.Done():
 			cmd.Process.Kill() //nolint:errcheck
 			return
-		case ch <- scanner.Text():
+		case ch <- StripNodePrefix(node, scanner.Text()):
 		}
 	}
 	cmd.Wait() //nolint:errcheck
+}
+
+// StripNodePrefix removes the "<node>: " prefix `logs` puts on every line.
+func StripNodePrefix(node, line string) string {
+	return strings.TrimPrefix(line, node+": ")
 }
 
 func (c *Client) StreamDmesg(ctx context.Context, node string, ch chan<- string) {
