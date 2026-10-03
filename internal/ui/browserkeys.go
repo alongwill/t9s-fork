@@ -49,6 +49,9 @@ func browserActionsFor(kind paneKind) []keyAction {
 	if kind == paneRelated {
 		return relatedActions()
 	}
+	if kind == paneNetwork {
+		return networkActions()
+	}
 	as := []keyAction{
 		{keys: []string{"up", "k"}, label: "↑↓", desc: "Navigate", visible: true, fn: moveAction(-1)},
 		{keys: []string{"down", "j"}, desc: "Move down", fn: moveAction(1)},
@@ -117,6 +120,9 @@ func browserActionsFor(kind paneKind) []keyAction {
 			keyAction{keys: []string{"c"}, desc: "Compare on all nodes", visible: true, fn: (App).comparePress},
 		)
 	}
+	if kind == paneCategories || kind == paneTypes || kind == paneInstances {
+		as = append(as, keyAction{keys: []string{"n"}, desc: "Network view (Networking category)", visible: kind != paneCategories, fn: (App).netKey})
+	}
 	if kind != paneAliases && kind != paneCompare && kind != paneDiff {
 		as = append(as,
 			keyAction{keys: []string{"ctrl+a"}, label: "^a", desc: "All types (aliases palette)", visible: true, fn: (App).openPalette},
@@ -168,13 +174,14 @@ type browserKey struct {
 // browserKeyTable lists every pane-specific browser key. A test checks it
 // against browserActionsFor so it cannot drift from the real bindings.
 var browserKeyTable = []browserKey{
-	{"d", []paneKind{paneTypes, paneInstances, paneDescribe}, "a type or instance list", "open a category first"},
+	{"d", []paneKind{paneTypes, paneInstances, paneDescribe, paneNetwork}, "a type or instance list, or the network view", "open a category first"},
 	{"y", []paneKind{paneInstances, paneDescribe}, "an instance list", "Enter on a type first"},
-	{"c", []paneKind{paneTypes, paneInstances, paneYAML, paneRelated}, "a type, an instance list, a YAML pane or the related table", "open a category first"},
+	{"c", []paneKind{paneTypes, paneInstances, paneYAML, paneRelated, paneNetwork}, "a type, an instance list, a YAML pane, the related table or the network view", "open a category first"},
+	{"o", []paneKind{paneNetwork}, "the network view", "press N on the node list, or n in the Networking category"},
 	{"W", []paneKind{paneTypes, paneInstances, paneYAML, paneDescribe}, "an instance list (gRPC source)", "Enter on a type first"},
 	{"w", []paneKind{paneYAML}, "the YAML pane", "open an instance first"},
 	{"f", []paneKind{paneYAML}, "the YAML pane", "open an instance first"},
-	{"n", []paneKind{paneYAML}, "the YAML pane, after / search", "open an instance first"},
+	{"n", []paneKind{paneYAML, paneCategories, paneTypes, paneInstances}, "the YAML pane (after / search) and the Networking lists (opens the network view)", "open an instance first"},
 	{"N", []paneKind{paneYAML}, "the YAML pane, after / search", "open an instance first"},
 	{"/", []paneKind{paneCategories, paneTypes, paneInstances, paneYAML}, "a list or the YAML pane", "go back to a list"},
 }
@@ -674,6 +681,8 @@ func (app App) browserReload() (App, tea.Cmd) {
 		return app, nil
 	case paneRelated:
 		return app.reloadRelated()
+	case paneNetwork:
+		return app.reloadNetwork()
 	case paneCompare:
 		return app.reloadCompare()
 	case paneAliases:

@@ -17,6 +17,7 @@ import (
 //
 //	:nodes | :no                        node list
 //	:aliases | :alias | :a              all-types palette
+//	:netview | :nv                      the node's network as a tree
 //	:tips on | :tips off                tips in the status line (this session)
 //	:q | :q! | :quit                    quit
 //	:? | :h | :help                     help
@@ -68,7 +69,7 @@ func (app App) commandBrowser() (browser, bool) {
 	return b, true
 }
 
-var commandWords = []string{"nodes", "aliases", "quit", "help"}
+var commandWords = []string{"nodes", "aliases", "netview", "quit", "help"}
 
 // cmdCandidates is every string the prompt can complete to, lower-cased.
 func (app App) cmdCandidates() []string {
@@ -259,6 +260,10 @@ func (app App) runCommand(text string) (App, tea.Cmd) {
 			return app, nil
 		}
 		app, openCmd = app.openBrowser(*n)
+		if word == "netview" || word == "nv" { // Esc goes straight back to the node list
+			app, cmd := app.openNetwork(true)
+			return app, tea.Batch(openCmd, cmd)
+		}
 	}
 	var cmd tea.Cmd
 	app, cmd = app.runNodeCommand(word)
@@ -271,6 +276,8 @@ func (app App) runNodeCommand(word string) (App, tea.Cmd) {
 	switch word {
 	case "a", "alias", "aliases":
 		return app.openPalette()
+	case "netview", "nv":
+		return app.openNetwork(false)
 	}
 	if key, ok := matchCategory(word); ok {
 		return app.jumpCategory(key)

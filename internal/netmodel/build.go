@@ -524,6 +524,14 @@ func addrLess(a, b Address) bool {
 	if a.Missing != b.Missing {
 		return !a.Missing
 	}
+	pa, ea := netip.ParsePrefix(a.Prefix)
+	pb, eb := netip.ParsePrefix(b.Prefix)
+	if ea == nil && eb == nil {
+		if c := pa.Addr().Compare(pb.Addr()); c != 0 {
+			return c < 0
+		}
+		return pa.Bits() < pb.Bits()
+	}
 	return a.Prefix < b.Prefix
 }
 

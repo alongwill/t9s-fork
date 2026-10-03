@@ -202,6 +202,13 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		}
 		return app.openBrowser(*n)
 
+	case "N":
+		n := app.selectedNode()
+		if n == nil {
+			return app, nil
+		}
+		return app.openNetworkFromList(*n)
+
 	case "ctrl+a":
 		n := app.selectedNode()
 		if n == nil {

@@ -60,8 +60,9 @@ func buildHelpContent() string {
 		{"p", "Processes"},
 		{"a", "Resource browser"},
 		{"ctrl+a", "All types palette (browser for the selected node)"},
-		{":", "Command mode (:nodes :net :addr :aliases :q :help)"},
+		{":", "Command mode (:nodes :net :netview :addr :aliases :q :help)"},
 		{"A", "Network addresses"},
+		{"N", "Network view (tree from the NIC up, HTML diagram)"},
 		{"i", "Disks"},
 		{"H", "Cluster health"},
 		{"R", "Reboot node"},
@@ -202,6 +203,7 @@ func browserHelp(section func(string, [][2]string) string) string {
 		{paneYAML, "Resource Browser: YAML pane"},
 		{paneDescribe, "Resource Browser: describe pane"},
 		{paneRelated, "Resource Browser: related view (p)"},
+		{paneNetwork, "Resource Browser: network view (N, n)"},
 		{paneCompare, "Resource Browser: compare nodes (c)"},
 		{paneDiff, "Resource Browser: diff pane"},
 	}

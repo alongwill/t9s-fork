@@ -286,7 +286,7 @@ func (app App) handleConfigDocs(msg configDocsMsg) App {
 	}
 	cache[msg.node] = cfgCacheEntry{docs: app.browser.docs, denied: msg.denied}
 	app.configDocs = cache
-	return app.refreshConfigPanes()
+	return app.refreshConfigPanes().netRebuild()
 }
 
 // refreshConfigPanes re-reads open config instance/YAML panes after a reload.

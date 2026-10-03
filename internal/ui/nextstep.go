@@ -56,6 +56,8 @@ func (app App) nextStep() string {
 		parts = []string{"↑↓ scroll", "esc back"}
 	case paneRelated:
 		parts = app.relatedNextStep(p)
+	case paneNetwork:
+		parts = app.networkNextStep(p)
 	}
 	return strings.Join(parts, " · ")
 }
