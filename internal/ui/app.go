@@ -216,10 +216,12 @@ type App struct {
 	watchCh           chan talos.WatchEvent          // live watch of the open type (gRPC only)
 	watchCancel       context.CancelFunc
 	watchSeq          uint64
-	watchKey          string // node|type the watch runs for
-	watchLive         bool   // the stream is up (false after an error / close)
-	watchBootstrapped bool   // initial contents received: later events flash
-	watchOff          bool   // user pressed W
+	watchKey          string                                                 // node|type the watch runs for
+	watchLive         bool                                                   // the stream is up (false after an error / close)
+	watchBootstrapped bool                                                   // initial contents received: later events flash
+	watchOff          bool                                                   // user pressed W
+	compareSeq        uint64                                                 // cross-node compare generation (drops stale replies)
+	getConfig         func(ctx context.Context, node string) (string, error) // tests; nil = CLI
 	dialSource        func(ctx context.Context, cfgPath, contextName string) (talos.ResourceSource, error)
 	configDocs        map[string]cfgCacheEntry // node IP → machine config documents
 	cmd               cmdPrompt                // `:` command prompt
@@ -323,6 +325,9 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		app, cmd := app.handleKey(msg)
 		app, wcmd := app.syncWatch()
 		return app, tea.Batch(cmd, wcmd)
+
+	case compareNodeMsg:
+		return app.handleCompareNode(msg), nil
 
 	case resourceWatchMsg:
 		return app.handleResourceWatch(msg)

@@ -160,9 +160,12 @@ func browserHelp(section func(string, [][2]string) string) string {
 		title string
 	}{
 		{paneCategories, "Resource Browser: lists (categories / types / instances)"},
+		{paneTypes, "Resource Browser: types pane (extra keys)"},
 		{paneInstances, "Resource Browser: instances (extra keys)"},
 		{paneYAML, "Resource Browser: YAML pane"},
 		{paneDescribe, "Resource Browser: describe pane"},
+		{paneCompare, "Resource Browser: compare nodes (c)"},
+		{paneDiff, "Resource Browser: diff pane"},
 	}
 	var sb strings.Builder
 	seen := map[string]bool{}
@@ -170,7 +173,7 @@ func browserHelp(section func(string, [][2]string) string) string {
 		var rows [][2]string
 		for _, a := range browserActionsFor(t.kind) {
 			id := strings.Join(a.keys, "/") + "|" + a.desc
-			if t.kind == paneInstances && seen[id] {
+			if (t.kind == paneTypes || t.kind == paneInstances) && seen[id] {
 				continue
 			}
 			if t.kind == paneCategories {

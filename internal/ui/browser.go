@@ -28,6 +28,8 @@ const (
 	paneYAML
 	paneDescribe
 	paneAliases // ctrl+a palette
+	paneCompare // c: same resource on every node
+	paneDiff    // enter on a compare row: unified diff
 )
 
 // Count sentinels in browser.counts (missing key = not loaded yet).
@@ -50,6 +52,8 @@ type pane struct {
 	yaml     string               // paneYAML
 	cfgKind  string               // paneInstances, paneYAML: set when showing config documents
 	desc     []descLine           // paneDescribe
+	cmp      compareView          // paneCompare
+	diff     []diffLine           // paneDiff
 	loading  bool
 	err      string
 }
@@ -343,7 +347,7 @@ func (app App) browserLayout() []paneBox {
 	if n == 0 {
 		return nil
 	}
-	if st[n-1].kind == paneAliases { // the palette takes the whole width
+	if k := st[n-1].kind; k == paneAliases || k == paneCompare || k == paneDiff { // whole width
 		return []paneBox{{n - 1, app.width}}
 	}
 	if app.browser.fullscreen && st[n-1].kind == paneYAML {
@@ -382,7 +386,7 @@ func (app App) browserLayout() []paneBox {
 // paneInnerRows is the number of list rows (or YAML lines) visible in a pane.
 func (app App) paneInnerRows(k paneKind) int {
 	rows := app.mainHeight() - 2
-	if k == paneInstances || k == paneAliases {
+	if k == paneInstances || k == paneAliases || k == paneCompare {
 		rows-- // column header
 	}
 	return max(1, rows)
@@ -498,6 +502,10 @@ func (app App) paneLen(p pane) int {
 		return app.paneDescribeLen(p)
 	case paneAliases:
 		return len(b.paletteRows(p.filter))
+	case paneCompare:
+		return len(p.cmp.rows)
+	case paneDiff:
+		return len(p.diff)
 	}
 	return 0
 }
@@ -518,6 +526,10 @@ func (app App) breadcrumb() string {
 			parts = append(parts, "describe")
 		case paneAliases:
 			parts = append(parts, "all types")
+		case paneCompare:
+			parts = append(parts, "compare nodes")
+		case paneDiff:
+			parts = append(parts, "diff")
 		}
 	}
 	return strings.Join(parts, " > ")

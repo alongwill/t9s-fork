@@ -55,6 +55,12 @@ func browserActionsFor(kind paneKind) []keyAction {
 		{keys: []string{"ctrl+b", "pgup"}, desc: "Page up", fn: pageAction(-1)},
 	}
 	switch kind {
+	case paneCompare:
+		as = append(as,
+			keyAction{keys: []string{"enter"}, label: "↵", desc: "Diff against the browser's node", visible: true, fn: (App).compareEnter},
+		)
+	case paneDiff:
+		// scrolling only
 	case paneAliases:
 		as = append(as,
 			keyAction{keys: []string{"enter"}, label: "↵", desc: "Jump to type", visible: true, fn: (App).paletteSelect},
@@ -89,10 +95,15 @@ func browserActionsFor(kind paneKind) []keyAction {
 	}
 	if kind == paneInstances || kind == paneYAML || kind == paneDescribe {
 		as = append(as,
-			keyAction{keys: []string{"W"}, desc: "Live watch on/off (gRPC)", visible: kind != paneDescribe, fn: (App).toggleWatch},
+			keyAction{keys: []string{"W"}, desc: "Live watch on/off (gRPC)", visible: kind == paneInstances, fn: (App).toggleWatch},
 		)
 	}
-	if kind != paneAliases {
+	if kind == paneTypes || kind == paneInstances || kind == paneYAML {
+		as = append(as,
+			keyAction{keys: []string{"c"}, desc: "Compare on all nodes", visible: true, fn: (App).openCompare},
+		)
+	}
+	if kind != paneAliases && kind != paneCompare && kind != paneDiff {
 		as = append(as,
 			keyAction{keys: []string{"ctrl+a"}, label: "^a", desc: "All types (aliases palette)", visible: true, fn: (App).openPalette},
 			keyAction{keys: []string{":"}, desc: "Command mode (:nodes :net :addr :q)", visible: true, fn: (App).openCommandPrompt},
@@ -138,7 +149,7 @@ func (app App) browserMove(delta int) App {
 	n := app.paneLen(p)
 	rows := app.paneInnerRows(p.kind)
 	app.browser = app.browser.withTop(func(p *pane) {
-		if p.kind == paneYAML || p.kind == paneDescribe {
+		if p.kind == paneYAML || p.kind == paneDescribe || p.kind == paneDiff {
 			p.scroll = clamp(p.scroll+delta, 0, max(0, n-rows))
 			return
 		}
@@ -518,8 +529,10 @@ func (app App) browserReload() (App, tea.Cmd) {
 		app.browser = b.withTop(func(p *pane) { p.loading, p.err = true, "" })
 		return app, app.loadInstances(p.def)
 
-	case paneDescribe:
+	case paneDescribe, paneDiff:
 		return app, nil
+	case paneCompare:
+		return app.reloadCompare()
 	case paneAliases:
 		return app.paletteCounts()
 	case paneYAML:

@@ -16,6 +16,7 @@ type fakeSource struct {
 	lists map[string][]talos.ResourceMeta // "node|type" → items
 	yamls map[string]string               // "node|type|id" → yaml
 	errs  map[string]error                // "node|type" → list error
+	yerrs map[string]error                // "node|type|id" → GetYAML error
 
 	listCalls  atomic.Int32
 	yamlCalls  atomic.Int32
@@ -35,6 +36,7 @@ func newFakeSource(name string) *fakeSource {
 		lists:      map[string][]talos.ResourceMeta{},
 		yamls:      map[string]string{},
 		errs:       map[string]error{},
+		yerrs:      map[string]error{},
 		watchReady: make(chan struct{}, 8),
 	}
 }
@@ -55,6 +57,9 @@ func (f *fakeSource) List(_ context.Context, node, _, typ string) ([]talos.Resou
 
 func (f *fakeSource) GetYAML(_ context.Context, node, _, typ, id string) (string, error) {
 	f.yamlCalls.Add(1)
+	if err := f.yerrs[node+"|"+typ+"|"+id]; err != nil {
+		return "", err
+	}
 	if y, ok := f.yamls[node+"|"+typ+"|"+id]; ok {
 		return y, nil
 	}

@@ -66,6 +66,10 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 		body = app.describeLines(p, iw, inner)
 	case paneAliases:
 		body = app.paletteLines(p, iw, inner)
+	case paneCompare:
+		body = app.compareLines(p, iw, inner, active)
+	case paneDiff:
+		body = app.diffPaneLines(p, iw, inner)
 	}
 
 	lines := make([]string, 0, h)
@@ -93,6 +97,10 @@ func (app App) paneTitle(p pane) string {
 		return fmt.Sprintf("%s (%d)", p.title, len(app.browser.typeEntries(p.category, p.filter)))
 	case paneAliases:
 		return app.palettePaneTitle(p)
+	case paneCompare:
+		return p.title + "  (* = browser node)"
+	case paneDiff:
+		return p.title + "  (- browser node, + other)"
 	case paneInstances:
 		if p.loading {
 			return p.title

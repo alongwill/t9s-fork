@@ -138,3 +138,16 @@ func IsPermissionDenied(err error) bool {
 	s := err.Error()
 	return strings.Contains(s, "PermissionDenied") || strings.Contains(s, "not authorized")
 }
+
+// IsNotFound reports whether err says the resource (or its type) does not exist.
+func IsNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if status.Code(err) == codes.NotFound {
+		return true
+	}
+	s := err.Error()
+	return strings.Contains(s, "NotFound") || strings.Contains(s, "not found") ||
+		strings.Contains(s, "doesn't exist") || strings.Contains(s, "is not registered")
+}
