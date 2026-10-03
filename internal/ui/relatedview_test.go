@@ -88,9 +88,9 @@ func TestRelatedRendersWithinBudget(t *testing.T) {
 		t.Run(fmt.Sprintf("w%d_h%d", sz.w, sz.h), func(t *testing.T) {
 			app := relApp(sz.w, sz.h)
 			out := checkBudget(t, app, sz.w)
-			wants := []string{"PIPELINE", "FAMILY", "LinkSpec", "eth0", "lo"}
+			wants := []string{"PIPELINE", "FAMILY", "LinkSpec", "eth0"}
 			if sz.w >= 120 {
-				wants = append(wants, "LinkStatus")
+				wants = append(wants, "LinkStatus", "lo")
 			}
 			for _, want := range wants {
 				if !strings.Contains(ansi.Strip(out), want) {
@@ -138,7 +138,7 @@ func TestRelatedLayoutSwitchesAt120(t *testing.T) {
 
 func TestRelatedPipelineShowsConfigRootAndControllers(t *testing.T) {
 	out := ansi.Strip(checkBudget(t, relApp(200, 50), 200))
-	for _, want := range []string{"MachineConfig", "LinkConfig", "LinkSpecController", "LinkStatus"} {
+	for _, want := range []string{"MachineConfig", "LinkConfig", "PlatformConfig", "LinkStatus"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("%q missing:\n%s", want, out)
 		}
@@ -307,5 +307,14 @@ func TestRelatedOpenedWithPFromEveryPane(t *testing.T) {
 	app = press(t, app, "p")
 	if top, _ := app.browser.top(); top.kind != paneRelated {
 		t.Errorf("p on YAML: top = %v", top.kind)
+	}
+}
+
+func TestRelatedTableScrollsToLastRowAtSmallSize(t *testing.T) {
+	app := relApp(80, 24)
+	app = press(t, app, "tab", "G")
+	out := ansi.Strip(checkBudget(t, app, 80))
+	if !strings.Contains(out, "lo ") {
+		t.Errorf("last row not visible after G:\n%s", out)
 	}
 }
