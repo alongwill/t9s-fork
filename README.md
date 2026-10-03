@@ -31,6 +31,7 @@ The aim of this project is to make it easier to navigate, observe and manage you
 - 📋 **Node list** — Talos version, Kubernetes version, role and live machine stage/readiness (from `MachineStatus`)
 - 📡 **Live streaming:** service logs, dynamically discovered node log streams and dmesg with an interactive ▶ cursor
 - 🔍 **Per-node resource views** — disks, processes, containers, network addresses
+- 🎓 **Learning aids** — `d` explains a type (what it is, its Ubuntu equivalent, which controllers write and read it), a next-step hint line and tips
 - 🗂️ **Resource browser** — browse a node's machine-config documents and COSI resources by category (Networking, Block, …), greyed when absent or empty, with YAML and describe panes, a `ctrl+a` all-types palette and `:` jump commands (`a` on a node)
 - 📊 **Metrics** — CPU/RAM stats with delta, auto-refreshed every 5s
 - 📄 **Machine config** — read-only YAML viewer
@@ -202,12 +203,12 @@ The types pane has two sections. **CONFIG** lists the machine-config document ki
 | <kbd>/</kbd>, <kbd>n</kbd> / <kbd>N</kbd> | YAML | Search (regex), next / previous match |
 | <kbd>w</kbd> | YAML | Toggle wrap |
 | <kbd>f</kbd> | YAML | Toggle full screen |
-| <kbd>W</kbd> | instances, YAML | Live watch on/off (gRPC source only) |
-| <kbd>c</kbd> | types (one instance), instances, YAML | Compare the selected resource or config document on every node (see below) |
+| <kbd>W</kbd> | types, instances, YAML | Live watch on/off (gRPC source only). On a types row it opens the instance list first |
+| <kbd>c</kbd> | types, instances, YAML | Compare the selected resource or config document on every node (see below). On a type with several instances it opens the instance list first |
 | <kbd>Esc</kbd> / <kbd>q</kbd> | all | Clear the filter or search first, then go back one pane; from the first pane back to the node list |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | all | Reload the data behind the current pane |
 
-Describe shows the type, display type, aliases, default namespace and sensitivity for a resource type, and the description, first Talos version and group for a config kind. Talos v1.14 has no `explain` subcommand, so resource field documentation is not available.
+Describe is the learning page of the browser, see [Learning Talos with t9s](#learning-talos-with-t9s). Talos v1.14 has no `explain` subcommand, so resource field documentation is not available.
 
 **Data source (`--source=auto|grpc|cli`).** The resource browser can read COSI resources over Talos' gRPC API (`pkg/machinery/client`, same talosconfig and context) or through subprocesses of the Talos CLI. `auto` (default) dials gRPC in the background with a 5 s timeout and falls back to the CLI, noting `gRPC unavailable (<reason>), using CLI` in the status line, so the browser still works when the talosconfig auth mode is not supported by the library. The header shows `src: grpc` or `src: cli`. Every other view always uses the CLI.
 
@@ -227,8 +228,22 @@ What needs gRPC: counting every type up front (categories show real `present/kno
 | `:net`, `:block`, … | That category (key or label prefix) on the current node |
 | `:addr`, `:dhcpv4config`, `:addressstatuses.net.talos.dev` | Jump to that alias, display type, full type or config kind |
 | `:a`, `:alias`, `:aliases` | All-types palette |
+| `:tips on`, `:tips off` | Show or silence the tips in the status line (this session) |
 | `:q`, `:q!`, `:quit` | Quit |
 | `:?`, `:h`, `:help` | Help |
+
+### Learning Talos with t9s
+
+The browser tries to answer four questions without leaving t9s: what is this resource, what is it on Ubuntu, what feeds it and what does it feed, and which key do I press next.
+
+- **Describe (<kbd>d</kbd>)** on a type or instance shows these sections, leaving out any that have no data:
+  `WHAT` (one sentence), `ON UBUNTU` (the closest Ubuntu tool or file), `LOOK HERE` (when this is the resource to check), `WRITTEN BY` (the controller that owns the selected instance), `FED BY` (the controllers that write this type, with the types they read) and `FEEDS` (the controllers that read it, with the types they write). On a config kind it shows `WHAT`, `ON UBUNTU`, `SINCE` and the controllers that read the machine config. Rows that name a resource type are selectable with <kbd>j</kbd> / <kbd>k</kbd>; <kbd>Enter</kbd> jumps there, and <kbd>Esc</kbd> behaves as after a palette jump. Types the node does not have are dim and cannot be selected. <kbd>Ctrl</kbd>+<kbd>R</kbd> reloads the relationships.
+- **Relationships need the gRPC source** (`--source=grpc`, the default `auto` uses it when it can dial). With the CLI source t9s parses the CLI's graphviz output instead, and says `relationships need the gRPC source (--source=grpc)` if that fails.
+- **Next-step line.** One dim line under the panes describes the selected row and the keys worth pressing next, for example `↵ 3 instances · d what is this · c compare (on an instance) · W watch (on an instance)`, or `not on this node · d what is this` on a greyed row. It is hidden below 20 terminal rows.
+- **Keys explain themselves.** A browser key pressed where it does not work says where it does, naming the selected type: `W works on an instance list: press Enter on LinkStatuses first`.
+- **Tips.** A short tip about the browser or a Talos concept shows in the status line when the browser opens and when a category opens, if nothing else is shown. `:tips off` silences them for the session.
+
+The notes are in `internal/catalog/resource-notes.yaml` (about 40 types), written from the Talos source and skill references. Types without a note still show their definition fields and relationships.
 
 ### Log Streams
 

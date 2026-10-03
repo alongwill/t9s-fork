@@ -208,6 +208,20 @@ Deferred / not done:
 - The diff falls back to remove-all/add-all when the differing region exceeds about 4M line pairs.
 - Open question 3 (config document to produced resources links) is untouched.
 
+## Learning roadmap
+
+Four PRs turn the browser into a place to learn Talos. Plan for A: `docs/design/learning-a-plan.md`.
+
+| PR | Scope | State |
+|---|---|---|
+| A | Key feedback in every pane, next-step line, tips, knowledge notes (what / Ubuntu / look here), controller dependency graph, relationship-aware `d` describe | done |
+| B | Pipeline / related-resources view: follow a resource through Config → Spec → Status along the graph | planned |
+| C | Symptom guides: start from "node has no network" or "disk missing" and walk the relevant resources | planned |
+| D | Network tree and an HTML stack diagram (links, addresses, routes, bonds, VLANs) | planned |
+
+Open question 3 below (config documents to the resources they produce) is partly answered by A: describe on a
+config kind lists the controllers that read the machine config; B is where the document-to-resource link belongs.
+
 ## Open questions
 
 1. ~~Is a gRPC client acceptable in t9s, or must it stay subprocess-only?~~ **Answered (Andrew, phase 3): yes, for the resource browser only.** Every other view keeps the subprocess client, and the subprocess source stays as the fallback (`--source=auto|grpc|cli`, default `auto`).
