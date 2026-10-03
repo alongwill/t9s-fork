@@ -101,6 +101,11 @@ func waitForLine(ch <-chan string, sessionSeq uint64) tea.Cmd {
 }
 
 func (app App) startLogStream(target string) (App, tea.Cmd) {
+	return app.startLogRun(target, app.runLogStream)
+}
+
+// startLogRun opens the logs view on target, fed by run.
+func (app App) startLogRun(target string, run func(context.Context, string, string, chan<- string)) (App, tea.Cmd) {
 	app.stopLogs()
 	app.logSessionSeq++
 	app.logOrigin = app.state
@@ -121,7 +126,7 @@ func (app App) startLogStream(target string) (App, tea.Cmd) {
 	logCh := app.logCh
 	logCtx := app.logCtx
 	logSessionSeq := app.logSessionSeq
-	runLogStream := app.runLogStream
+	runLogStream := run
 
 	return app, func() tea.Msg {
 		go func() {

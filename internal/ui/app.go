@@ -40,6 +40,7 @@ const (
 	StateHelp
 	StateCategories // resource browser, root pane only
 	StateBrowser    // resource browser, deeper panes
+	StateContainerDetail
 )
 
 const (
@@ -102,6 +103,8 @@ type App struct {
 	logTS         bool        // Timestamps
 	logWrap       bool        // Wrap
 	runLogStream  func(context.Context, string, string, chan<- string)
+	// runContainerLogStream follows a container's logs: node, namespace, ID.
+	runContainerLogStream func(context.Context, string, string, string, chan<- string)
 
 	// Machine config
 	machConf      string // raw full YAML from talosctl
@@ -174,6 +177,7 @@ type App struct {
 	containers  []talos.ContainerInfo
 	contCur     int
 	contLoading bool
+	detail      containerDetail
 
 	// Addresses
 	addresses   []talos.AddressInfo
@@ -262,24 +266,25 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 	fi.Prompt = ""
 
 	return App{
-		cfg:          cfg,
-		cfgPath:      cfgPath,
-		talosCtx:     talosCtx,
-		client:       client,
-		state:        StateNodeList,
-		upgradeInput: ti,
-		searchInput:  si,
-		findInput:    fi,
-		contexts:     cfg.ContextNames(),
-		logVP:        viewport.New(80, 20),
-		dmesgVP:      viewport.New(80, 20),
-		machVP:       viewport.New(80, 20),
-		upgradeVP:    viewport.New(80, 20),
-		healthVP:     viewport.New(80, 20),
-		helpVP:       viewport.New(80, 20),
-		runLogStream: client.StreamLogs,
-		resSem:       make(chan struct{}, 8),
-		tipIdx:       -1,
+		cfg:                   cfg,
+		cfgPath:               cfgPath,
+		talosCtx:              talosCtx,
+		client:                client,
+		state:                 StateNodeList,
+		upgradeInput:          ti,
+		searchInput:           si,
+		findInput:             fi,
+		contexts:              cfg.ContextNames(),
+		logVP:                 viewport.New(80, 20),
+		dmesgVP:               viewport.New(80, 20),
+		machVP:                viewport.New(80, 20),
+		upgradeVP:             viewport.New(80, 20),
+		healthVP:              viewport.New(80, 20),
+		helpVP:                viewport.New(80, 20),
+		runLogStream:          client.StreamLogs,
+		runContainerLogStream: client.StreamContainerLogs,
+		resSem:                make(chan struct{}, 8),
+		tipIdx:                -1,
 	}
 }
 
@@ -602,6 +607,9 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return app, nil
 
+	case detailStatsMsg, detailMemMsg, detailProcsMsg, detailLogsMsg:
+		return app.applyDetailMsg(msg), nil
+
 	case addressesLoadedMsg:
 		app.addrLoading = false
 		if msg.err != nil {
@@ -907,6 +915,10 @@ func resourceLine(app App) string {
 		if app.selNode != nil {
 			return fmt.Sprintf("Containers › %s (%d)", app.selNode.Hostname, len(app.containers))
 		}
+	case StateContainerDetail:
+		if app.selNode != nil {
+			return fmt.Sprintf("Container › %s › %s", app.selNode.Hostname, app.detail.c.ID)
+		}
 	case StateAddresses:
 		if app.selNode != nil {
 			return fmt.Sprintf("Addresses › %s (%d)", app.selNode.Hostname, len(app.addresses))
@@ -959,6 +971,8 @@ func viewTitle(s AppState) string {
 		return "[ Processes ]"
 	case StateContainers:
 		return "[ Containers ]"
+	case StateContainerDetail:
+		return "[ Container ]"
 	case StateAddresses:
 		return "[ Addresses ]"
 	case StateHealth:
@@ -1037,6 +1051,8 @@ func (app App) renderMain(height int) string {
 		return app.renderProcesses(height)
 	case StateContainers:
 		return app.renderContainers(height)
+	case StateContainerDetail:
+		return app.renderContainerDetail(height)
 	case StateAddresses:
 		return app.renderAddresses(height)
 	case StateHealth:
@@ -1463,11 +1479,13 @@ func (app App) goBack() App {
 	switch app.state {
 	case StateLogs:
 		switch app.logOrigin {
-		case StateServices, StateLogStreams:
+		case StateServices, StateLogStreams, StateContainerDetail:
 			app.state = app.logOrigin
 		default:
 			app.state = StateServices
 		}
+	case StateContainerDetail:
+		app.state = StateContainers
 	case StateLogStreams:
 		app.state = StateNodeList
 		app.selNode = nil

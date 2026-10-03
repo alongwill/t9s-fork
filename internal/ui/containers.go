@@ -26,6 +26,10 @@ func (app App) handleContainersKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			app.contCur++
 			app.viewScrollStart = clampScrollStart(app.viewScrollStart, app.contCur, len(app.containers), app.mainHeight()-3)
 		}
+	case "enter":
+		if app.selNode != nil && app.contCur >= 0 && app.contCur < len(app.containers) {
+			return app.openContainerDetail(app.containers[app.contCur])
+		}
 	case "r":
 		if app.selNode != nil {
 			app.contLoading = true

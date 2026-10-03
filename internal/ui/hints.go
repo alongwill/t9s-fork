@@ -109,9 +109,16 @@ func stateHints(app App) []hint {
 			{"r", "Refresh"},
 			{"Esc/q", "Back"},
 		}
+	case StateContainerDetail:
+		return []hint{
+			{"l", "Logs"},
+			{"r", "Refresh"},
+			{"Esc/q", "Back"},
+		}
 	case StateContainers:
 		return []hint{
 			{"↑↓", "Navigate"},
+			{"↵", "Detail"},
 			{"w", wrapHint(app)},
 			{"r", "Refresh"},
 			{"Esc/q", "Back"},

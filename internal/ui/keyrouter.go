@@ -112,6 +112,8 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app.handleProcessesKey(msg)
 	case StateContainers:
 		return app.handleContainersKey(msg)
+	case StateContainerDetail:
+		return app.handleContainerDetailKey(msg)
 	case StateAddresses:
 		return app.handleAddressesKey(msg)
 	case StateHealth:

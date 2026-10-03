@@ -219,18 +219,22 @@ func (app App) logArrival(i int) time.Time {
 	return time.Time{}
 }
 
-// renderLogLine renders one logical line as terminal rows.
-func (app App) renderLogLine(i int, selected bool, maxRows int) []string {
-	lay := app.logLayout()
-	raw := app.logLines[i]
-	plain := plainLogLine(raw)
-	rs := []rune(plain)
+// styledLine is a plain log line with its colour spans resolved per rune.
+type styledLine struct {
+	rs    []rune
+	kinds []int // span kind per rune, -1 for none
+	dim   bool  // DEBUG/TRACE: the whole line is dim
+}
 
+// newStyledLine resolves the colour spans of plain; find, when set, adds the
+// find highlight on top of them.
+func newStyledLine(plain, find string) styledLine {
+	rs := []rune(plain)
 	spans, dim := logSpans(plain)
 	if dim {
 		spans = nil
 	}
-	spans = append(spans, findSpans(plain, app.findQuery)...)
+	spans = append(spans, findSpans(plain, find)...)
 	kinds := make([]int, len(rs))
 	for j := range kinds {
 		kinds[j] = -1
@@ -240,32 +244,42 @@ func (app App) renderLogLine(i int, selected bool, maxRows int) []string {
 			kinds[j] = int(sp.kind)
 		}
 	}
+	return styledLine{rs: rs, kinds: kinds, dim: dim}
+}
 
+// segment renders runes [from, to) with their colours. selected styles sit on
+// the cursor row's background.
+func (sl styledLine) segment(from, to int, selected bool) string {
 	base := lipgloss.NewStyle()
 	switch {
 	case selected:
 		base = selectedStyle
-	case dim:
+	case sl.dim:
 		base = logDimStyle
 	}
-	seg := func(from, to int) string {
-		var sb strings.Builder
-		for a := from; a < to; {
-			b := a
-			for b < to && kinds[b] == kinds[a] {
-				b++
-			}
-			st := base
-			if kinds[a] >= 0 {
-				st = logSpanStyle(logSpanKind(kinds[a]), selected)
-			}
-			sb.WriteString(st.Render(string(rs[a:b])))
-			a = b
+	var sb strings.Builder
+	for a := from; a < to; {
+		b := a
+		for b < to && sl.kinds[b] == sl.kinds[a] {
+			b++
 		}
-		return sb.String()
+		st := base
+		if sl.kinds[a] >= 0 {
+			st = logSpanStyle(logSpanKind(sl.kinds[a]), selected)
+		}
+		sb.WriteString(st.Render(string(sl.rs[a:b])))
+		a = b
 	}
+	return sb.String()
+}
 
-	ranges, cut := lay.chunks(rs)
+// renderLogLine renders one logical line as terminal rows.
+func (app App) renderLogLine(i int, selected bool, maxRows int) []string {
+	lay := app.logLayout()
+	plain := plainLogLine(app.logLines[i])
+	sl := newStyledLine(plain, app.findQuery)
+
+	ranges, cut := lay.chunks(sl.rs)
 	if len(ranges) > maxRows {
 		ranges = ranges[:maxRows]
 	}
@@ -289,7 +303,7 @@ func (app App) renderLogLine(i int, selected bool, maxRows int) []string {
 				}
 			}
 		}
-		text := seg(r[0], r[1])
+		text := sl.segment(r[0], r[1], selected)
 		if cut {
 			text += logDimStyle.Render("…")
 		}
