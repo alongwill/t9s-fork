@@ -10,7 +10,7 @@ import (
 
 var (
 	paneActiveBorder   = lipgloss.NewStyle().Foreground(colorCyan)
-	paneInactiveBorder = lipgloss.NewStyle().Foreground(colorDimGray)
+	paneInactiveBorder = lipgloss.NewStyle().Foreground(colorBorderQuiet)
 	hitStyle           = lipgloss.NewStyle().Background(colorYellow).Foreground(colorBg)
 	hitCurStyle        = lipgloss.NewStyle().Background(colorOrange).Foreground(colorBg).Bold(true)
 	yamlKeyStyle       = lipgloss.NewStyle().Foreground(colorCyan)
@@ -50,8 +50,9 @@ func (app App) renderBrowser(height int) string {
 // renderPane returns exactly h lines, each exactly w cells wide.
 func (app App) renderPane(p pane, w, h int, active bool) []string {
 	border := paneInactiveBorder
+	accent := app.paneAccent(p)
 	if active {
-		border = paneActiveBorder
+		border = lipgloss.NewStyle().Foreground(accent)
 	}
 	iw := max(0, w-2)
 	inner := max(0, h-2)
@@ -80,12 +81,12 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 
 	lines := make([]string, 0, h)
 	title := cutWidth(" "+app.paneTitle(p)+" ", iw)
-	titleStyled := titleStyle.Render(title)
+	titleStyled := lipgloss.NewStyle().Foreground(accent).Bold(true).Render(title)
 	if !active {
 		titleStyled = dimStyle.Render(title)
 	}
 	rule := strings.Repeat("─", max(0, iw-lipgloss.Width(title)))
-	lines = append(lines, border.Render("┌")+titleStyled+border.Render(rule+"┐"))
+	lines = append(lines, border.Render("╭")+titleStyled+border.Render(rule+"╮"))
 	for i := 0; i < inner; i++ {
 		row := strings.Repeat(" ", iw)
 		if i < len(body) {
@@ -93,7 +94,7 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 		}
 		lines = append(lines, border.Render("│")+row+border.Render("│"))
 	}
-	lines = append(lines, border.Render("└"+strings.Repeat("─", iw)+"┘"))
+	lines = append(lines, border.Render("╰"+strings.Repeat("─", iw)+"╯"))
 	return lines[:min(len(lines), h)]
 }
 
@@ -214,7 +215,12 @@ func (app App) categoryLines(p pane, iw, inner int, active bool) []string {
 		}
 		dim := r.counted && r.present == 0
 		text := rowLR(i == p.cur, r.label, fmt.Sprintf("%s/%d", present, r.known), iw)
-		out = append(out, rowStyle(i == p.cur, active, dim).Render(text))
+		base := rowStyle(i == p.cur, active, dim)
+		if dim {
+			out = append(out, base.Render(text))
+			continue
+		}
+		out = append(out, paintSpans(text, base, []span{{2, 2 + lipgloss.Width(cutWidth(r.label, iw)), withFg(base, categoryAccent(r.key))}}))
 	}
 	return out
 }
@@ -259,16 +265,37 @@ func (app App) typeLines(p pane, iw, inner int, active bool) []string {
 			}
 		}
 		var text string
-		if showAlias && e.config { // config rows have no alias: the name gets that width
-			text = fit(marker(selected)+fit(e.name(), avail-countW-1)+" "+padLeft(cnt, countW), iw)
-		} else if showAlias {
-			nameW := avail - aliasW - countW - 2
+		nameW := avail - aliasW - countW - 2
+		cntFrom := 0
+		switch {
+		case showAlias && e.config: // config rows have no alias: the name gets that width
+			nameW = avail - countW - 1
+			text = fit(marker(selected)+fit(e.name(), nameW)+" "+padLeft(cnt, countW), iw)
+			cntFrom = 2 + nameW + 1 + countW - lipgloss.Width(cnt)
+		case showAlias:
 			text = marker(selected) + fit(e.name(), nameW) + " " + fit(alias, aliasW) + " " + padLeft(cnt, countW)
 			text = fit(text, iw)
-		} else {
+			cntFrom = 2 + nameW + 1 + aliasW + 1 + countW - lipgloss.Width(cnt)
+		default:
+			nameW = max(1, avail-lipgloss.Width(cnt)-1)
 			text = rowLR(selected, e.name(), cnt, iw)
+			cntFrom = len([]rune(strings.TrimRight(text, " "))) - lipgloss.Width(cnt) // rowLR right-aligns the count
 		}
-		out = append(out, rowStyle(selected, active, dim).Render(text))
+		base := rowStyle(selected, active, dim)
+		var spans []span
+		stem, suffix := kindSuffix(e.name())
+		role := roleOf(e.name())
+		nameEnd := 2 + lipgloss.Width(cutWidth(e.name(), nameW))
+		if suffix != "" && !dim {
+			spans = append(spans, span{2 + len([]rune(stem)), nameEnd, withFg(base, roleColor(role))})
+		}
+		switch {
+		case cnt == "lock":
+			spans = append(spans, span{cntFrom, cntFrom + 4, withFg(base, colorLockAccent)})
+		case !dim && cnt != "…" && cnt != "?":
+			spans = append(spans, span{cntFrom, cntFrom + lipgloss.Width(cnt), withFg(base, categoryAccent(p.category)).Bold(true)})
+		}
+		out = append(out, paintSpans(text, base, spans))
 	}
 	return out
 }

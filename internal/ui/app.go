@@ -831,6 +831,9 @@ func (app App) renderHeader() string {
 	topBar := left + fill + right
 
 	resource := dimStyle.Render("  " + resourceLine(app))
+	if isBrowserState(app.state) { // styled per segment: chips must not inherit the dim wrapper
+		resource = "  " + app.browserHeaderStyled()
+	}
 	hints := app.renderHintsPanel()
 	sepLine := strings.Repeat("─", app.width)
 
