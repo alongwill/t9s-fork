@@ -26,6 +26,8 @@ func stateHints(app App) []hint {
 			{"↵/s", "Services"},
 			{"l", "Log streams"},
 			{"a", "Resources"},
+			{"^a", "All types"},
+			{":", "Command"},
 			{"e", "Extensions"},
 			{"?", "All shortcuts"},
 			{"q", "Quit"},

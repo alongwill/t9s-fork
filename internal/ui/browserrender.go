@@ -240,7 +240,9 @@ func (app App) typeLines(p pane, iw, inner int, active bool) []string {
 			}
 		}
 		var text string
-		if showAlias {
+		if showAlias && e.config { // config rows have no alias: the name gets that width
+			text = fit(marker(selected)+fit(e.name(), avail-countW-1)+" "+padLeft(cnt, countW), iw)
+		} else if showAlias {
 			nameW := avail - aliasW - countW - 2
 			text = marker(selected) + fit(e.name(), nameW) + " " + fit(alias, aliasW) + " " + padLeft(cnt, countW)
 			text = fit(text, iw)

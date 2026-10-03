@@ -60,6 +60,7 @@ func buildHelpContent() string {
 		{"c", "Containers"},
 		{"a", "Resource browser"},
 		{"ctrl+a", "All types palette (browser for the selected node)"},
+		{":", "Command mode (:nodes :net :addr :aliases :q :help)"},
 		{"A", "Network addresses"},
 		{"i", "Disks"},
 		{"H", "Cluster health"},

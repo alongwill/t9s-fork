@@ -14,6 +14,13 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
 | COSI wrappers: `GetResourceDefinitions`, `ListResources`, `GetResourceYAML`, `IsPermissionDenied` | `internal/talos/resources.go` |
 | `ResourceDef`, `ResourceMeta` | `internal/talos/types.go` |
 | Type → category mapping | `internal/catalog/categories.go` |
+| Config-kind catalogue (`go:embed config-kinds.json`), `ConfigKinds`, `KindsAvailable`, `ConfigCategoryFor` | `internal/catalog/configkinds.go` |
+| Regenerate the catalogue from the Talos source | `hack/gen-config-kinds.py` |
+| `SplitConfigDocs`, `ConfigDoc` (machine config → documents) | `internal/talos/configdocs.go` |
+| Config section: row model (`typeEntries`, `typeVisual`), per-node doc cache, `configDocsMsg` handler | `internal/ui/browserconfig.go` |
+| `d` describe pane (`paneDescribe`) | `internal/ui/browserdescribe.go` |
+| `ctrl+a` palette (`paneAliases`), `jumpTo`, `jumpCategory`, `categoryStack` | `internal/ui/browserpalette.go` |
+| `:` command mode (`cmdPrompt`, suggestions, history, grammar) | `internal/ui/command.go` |
 
 ## Patterns
 
@@ -40,6 +47,24 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
 | `get rd -n <node> -o json` | One object per type. `spec.{type,displayType,aliases,allAliases,defaultNamespace,sensitivity}` (COSI `ResourceDefinitionSpec` yaml tags, checked against cosi-project/runtime v1.16.2). `sensitivity` is `""` or `"sensitive"`. Not yet checked against a live Talos 1.14 node. |
 | `get <type> -n <node> --namespace <ns> -o json` | Stream of objects; `metadata.{namespace,type,id,version,phase}`. `version` may be a number or a string. Empty stdout = no instances. Sensitive types fail with `PermissionDenied` without `os:admin`. |
 | `get <type> <id> -n <node> --namespace <ns> -o yaml` | Full YAML of one resource. |
+| `get machineconfig v1alpha1 -n <node> -o yaml` | Config documents. `spec` is a string holding the multi-document stream; `SplitConfigDocs` also accepts a bare stream. Needs `os:admin` (`PermissionDenied` → `requires os:admin` row). Not yet checked against a live Talos 1.14 node. |
+
+- **Types pane has two sections.** `typeEntries` is the list of *selectable* rows (config kinds, then
+  resources); `pane.cur` indexes it. `typeVisual` adds the `CONFIG` / `RESOURCES` header and note rows,
+  and `pane.scroll` is in those visual lines (`visualIndex` converts). Headers are never selectable, so
+  no cursor-skipping code is needed. Config kinds are shown only while the machine config is readable
+  (`configShown`); `cfgDenied` shows a `requires os:admin` note instead.
+- **Config documents** load once per node when a category opens (`ensureConfig`), cached in
+  `App.configDocs`; `ctrl+r` on a config pane or the types pane drops the cache entry and refetches
+  (`reloadConfig`). A config instances/YAML pane has `pane.cfgKind` set; its YAML is the document text, not a fetch.
+- **Describe, palette and jumps are panes on the same stack.** Closing = `popPane`. `jumpTo` / `jumpCategory`
+  *replace* the stack (`categoryStack`) so `esc` lands in the category.
+- **Prompts:** `app.cmd` (`:`) is checked first in `handleKey`, then `browser.prompting` (`/` filter, YAML find;
+  the palette reuses the filter prompt, with `handlePalettePromptKey` for `esc`/`enter`). A `:` command that
+  needs the resource definitions before they have arrived is parked in `browser.pendingCmd` and run by
+  `handleResourceDefs`.
+- **Describe has no field docs:** Talos v1.14 has no `explain` subcommand, so resource describe shows the
+  `rd` fields only.
 
 ## Gotchas
 

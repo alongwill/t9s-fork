@@ -88,7 +88,10 @@ func browserActionsFor(kind paneKind) []keyAction {
 		}
 	}
 	if kind != paneAliases {
-		as = append(as, keyAction{keys: []string{"ctrl+a"}, label: "^a", desc: "All types (aliases palette)", visible: true, fn: (App).openPalette})
+		as = append(as,
+			keyAction{keys: []string{"ctrl+a"}, label: "^a", desc: "All types (aliases palette)", visible: true, fn: (App).openPalette},
+			keyAction{keys: []string{":"}, desc: "Command mode (:nodes :net :addr :q)", visible: true, fn: (App).openCommandPrompt},
+		)
 	}
 	return append(as,
 		keyAction{keys: []string{"esc", "q"}, label: "Esc/q", desc: "Back (clears filter first)", visible: true, fn: (App).browserBack},

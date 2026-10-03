@@ -31,7 +31,7 @@ The aim of this project is to make it easier to navigate, observe and manage you
 - 📋 **Node list** — Talos version, Kubernetes version, role and live machine stage/readiness (from `MachineStatus`)
 - 📡 **Live streaming:** service logs, dynamically discovered node log streams and dmesg with an interactive ▶ cursor
 - 🔍 **Per-node resource views** — disks, processes, containers, network addresses
-- 🗂️ **Resource browser** — browse every COSI resource on a node by category (Networking, Block, …), greyed when empty, with a YAML pane (`a` on a node)
+- 🗂️ **Resource browser** — browse a node's machine-config documents and COSI resources by category (Networking, Block, …), greyed when absent or empty, with YAML and describe panes, a `ctrl+a` all-types palette and `:` jump commands (`a` on a node)
 - 📊 **Metrics** — CPU/RAM stats with delta, auto-refreshed every 5s
 - 📄 **Machine config** — read-only YAML viewer
 - 🧩 **Extensions** — installed list + Siderolabs catalog browser (requires `crane`)
@@ -116,7 +116,7 @@ Talos 1.14 specifics handled by t9s:
 | Edit config | `talosctl apply-config --mode auto` | 1.0 |
 | Patch config | `talosctl patch machineconfig --patch @file` | 1.2 |
 | Addresses | `talosctl get addresses -o json` | 1.2 |
-| Resource browser | `talosctl get rd -o json`, `get <type> --namespace <ns> -o json`, `get <type> <id> --namespace <ns> -o yaml` | 1.0 |
+| Resource browser | `talosctl get rd -o json`, `get <type> --namespace <ns> -o json`, `get <type> <id> --namespace <ns> -o yaml`; config documents from `get machineconfig v1alpha1 -o yaml` (needs `os:admin`) | 1.0 |
 | Extensions | `talosctl get extensions -o json` | 1.3 |
 | K8s version | `talosctl get kubeletstatus -o json`, fallback `get kubeletspec` | 1.14 / 1.3 |
 | Node stage / readiness | `talosctl get machinestatus -o json` | 1.2 |
@@ -175,15 +175,21 @@ t9s uses aliases to navigate most Talos resources — hit `?` at any time for th
 | <kbd>H</kbd> | Cluster health | | <kbd>R</kbd> / <kbd>S</kbd> | Reboot / Shutdown |
 | <kbd>U</kbd> | Upgrade Talos | | <kbd>K</kbd> | Upgrade Kubernetes |
 | <kbd>r</kbd> | Refresh | | <kbd>A</kbd> | Network addresses |
+| <kbd>Ctrl</kbd>+<kbd>A</kbd> | All-types palette for the selected node | | <kbd>:</kbd> | Command mode (`:nodes`, `:net`, `:addr`, `:q`, …) |
 
 > **Changed:** <kbd>a</kbd> now opens the resource browser. The network addresses view moved to <kbd>A</kbd>.
 
 ### Resource browser
 
-Opened with <kbd>a</kbd> on a node. Panes open to the right on <kbd>Enter</kbd> (node → categories → types → instances → YAML) and close one at a time on <kbd>Esc</kbd>. Types with no instances on the node are greyed; types that need `os:admin` show `lock`. Keys follow k9s.
+Opened with <kbd>a</kbd> on a node. Panes open to the right on <kbd>Enter</kbd> (node → categories → types → instances → YAML) and close one at a time on <kbd>Esc</kbd>. Keys follow k9s.
+
+The types pane has two sections. **CONFIG** lists the machine-config document kinds (`LinkConfig`, `DHCPv4Config`, … from an embedded catalogue, hidden when newer than the node's Talos version); the count is the number of documents of that kind in the node's config, and kinds the node does not use are greyed. **RESOURCES** lists the COSI resource types; types with no instances are greyed and types that need `os:admin` show `lock`. Reading the machine config needs `os:admin`; without it the CONFIG section shows `requires os:admin`. Enter on a config kind opens that one document (a list of names first when there are several).
 
 | Key | Pane | Action |
 |-----|------|--------|
+| <kbd>Ctrl</kbd>+<kbd>A</kbd> | all, node list | All-types palette (see below) |
+| <kbd>:</kbd> | all, node list | Command mode (see below) |
+| <kbd>d</kbd> | types, instances | Describe the selected config kind or resource type; <kbd>d</kbd> again, <kbd>Esc</kbd> or <kbd>q</kbd> closes, <kbd>y</kbd> switches to YAML |
 | <kbd>↑</kbd><kbd>↓</kbd> / <kbd>j</kbd><kbd>k</kbd> | all | Move / scroll |
 | <kbd>g</kbd> / <kbd>G</kbd>, <kbd>Home</kbd> / <kbd>End</kbd> | all | Top / bottom |
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>B</kbd>, <kbd>PgDn</kbd> / <kbd>PgUp</kbd> | all | Page down / up |
@@ -195,6 +201,21 @@ Opened with <kbd>a</kbd> on a node. Panes open to the right on <kbd>Enter</kbd> 
 | <kbd>f</kbd> | YAML | Toggle full screen |
 | <kbd>Esc</kbd> / <kbd>q</kbd> | all | Clear the filter or search first, then go back one pane; from the first pane back to the node list |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | all | Reload the data behind the current pane |
+
+Describe shows the type, display type, aliases, default namespace and sensitivity for a resource type, and the description, first Talos version and group for a config kind. Talos v1.14 has no `explain` subcommand, so resource field documentation is not available.
+
+**All-types palette (<kbd>Ctrl</kbd>+<kbd>A</kbd>).** One full-width list of every config kind and resource type on the node (`NAME ALIASES CATEGORY KIND COUNT`), with the filter already open: type to narrow it, an exact alias (`addr`) ranks first. Counts of types not yet counted fill in as they arrive. <kbd>Enter</kbd> jumps to the type with the usual panes behind it, so <kbd>Esc</kbd> lands in its category; <kbd>Esc</kbd> clears the filter, then closes the palette. On the node list it opens the browser for the selected node first.
+
+**Command mode (<kbd>:</kbd>).** Prompt in the status line, as in k9s: <kbd>Enter</kbd> / <kbd>Ctrl</kbd>+<kbd>E</kbd> run, <kbd>Esc</kbd> cancels, <kbd>Ctrl</kbd>+<kbd>U</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> clear, <kbd>Tab</kbd> / <kbd>→</kbd> accept the dim suggestion, <kbd>↑</kbd><kbd>↓</kbd> cycle suggestions (or history on an empty prompt).
+
+| Command | Action |
+|---------|--------|
+| `:nodes`, `:no` | Node list |
+| `:net`, `:block`, … | That category (key or label prefix) on the current node |
+| `:addr`, `:dhcpv4config`, `:addressstatuses.net.talos.dev` | Jump to that alias, display type, full type or config kind |
+| `:a`, `:alias`, `:aliases` | All-types palette |
+| `:q`, `:q!`, `:quit` | Quit |
+| `:?`, `:h`, `:help` | Help |
 
 ### Log Streams
 
