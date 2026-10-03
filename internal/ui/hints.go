@@ -48,7 +48,19 @@ func stateHints(app App) []hint {
 			{"r", "Reload"},
 			{"Esc/q", "Back"},
 		}
-	case StateLogs, StateDmesg:
+	case StateLogs:
+		return []hint{
+			{"↑↓", "Select line"},
+			{"s", "Autoscroll"},
+			{"f", "FullScreen"},
+			{"t", "Timestamps"},
+			{"w", "Wrap"},
+			{"g/G", "Top/Bottom"},
+			{"/", "Find"},
+			{"n/N", "Next/Prev"},
+			{"Esc/q", "Back"},
+		}
+	case StateDmesg:
 		return []hint{
 			{"↑↓", "Select line"},
 			{"PgUp/Dn", "Half page"},

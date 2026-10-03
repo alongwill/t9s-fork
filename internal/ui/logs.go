@@ -10,29 +10,17 @@ import (
 
 func (app App) handleLogsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 	if app.findActive {
+		prev := app.logCur
 		var cmd tea.Cmd
-		app, app.logCur, cmd = app.handleFindKey(msg, app.logLines, app.logCur)
+		var cur int
+		app, cur, cmd = app.handleFindKey(msg, app.logLines, app.logCur)
+		if cur != prev {
+			app = app.logMove(cur)
+		}
 		return app, cmd
 	}
 
-	n := len(app.logLines)
-	findBarH := 0
-	if app.findActive || app.findQuery != "" {
-		findBarH = 1
-	}
-	logMaxRows := max(1, app.mainHeight()-2-findBarH)
-	// Approximate anchor boundary (exact value accounts for wrapped lines but
-	// this is close enough for maintaining the scroll offset in the key handler).
-	approxAnchor := max(0, n-logMaxRows)
-
-	updateLogScroll := func() {
-		if app.logCur >= approxAnchor {
-			// Inside anchor window — reset so the transition out is smooth.
-			app.viewScrollStart = approxAnchor
-		} else {
-			app.viewScrollStart = clampScrollStart(app.viewScrollStart, app.logCur, n, logMaxRows)
-		}
-	}
+	page := max(1, app.logRowsFor(app.logHeight())/2)
 
 	switch msg.String() {
 	case "ctrl+c":
@@ -43,31 +31,37 @@ func (app App) handleLogsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			app.findQuery = ""
 			return app, nil
 		}
+		if app.logFull {
+			app.logFull = false
+			return app, nil
+		}
 		app.stopLogs()
 		app = app.goBack()
 		return app, nil
 	case "up", "k":
-		if app.logCur > 0 {
-			app.logCur--
-		}
-		updateLogScroll()
+		app = app.logMove(app.logCur - 1)
 	case "down", "j":
-		if app.logCur < n-1 {
-			app.logCur++
-		}
-		updateLogScroll()
+		app = app.logMove(app.logCur + 1)
 	case "pgup":
-		app.logCur = max(0, app.logCur-app.mainHeight()/2)
-		updateLogScroll()
+		app = app.logMove(app.logCur - page)
 	case "pgdown":
-		app.logCur = min(max(0, n-1), app.logCur+app.mainHeight()/2)
-		updateLogScroll()
-	case "g":
-		app.logCur = 0
-		updateLogScroll()
-	case "G":
-		app.logCur = max(0, n-1)
-		updateLogScroll()
+		app = app.logMove(app.logCur + page)
+	case "g", "home":
+		app = app.logMove(0)
+	case "G", "end":
+		app = app.logResume()
+	case "s":
+		if app.logNoFollow {
+			app = app.logResume()
+		} else {
+			app = app.logFreeze()
+		}
+	case "f":
+		app.logFull = !app.logFull
+	case "t":
+		app.logTS = !app.logTS
+	case "w":
+		app.logWrap = !app.logWrap
 	case "/":
 		app.findActive = true
 		app.findInput.SetValue("")
@@ -75,46 +69,17 @@ func (app App) handleLogsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 	case "n":
 		if app.findQuery != "" {
 			if idx := findLineNext(app.logLines, app.logCur+1, app.findQuery); idx >= 0 {
-				app.logCur = idx
+				app = app.logMove(idx)
 			}
 		}
 	case "N":
 		if app.findQuery != "" {
 			if idx := findLinePrev(app.logLines, app.logCur-1, app.findQuery); idx >= 0 {
-				app.logCur = idx
+				app = app.logMove(idx)
 			}
 		}
 	}
 	return app, nil
-}
-
-func (app App) renderLogs(height int) string {
-	node := ""
-	if app.selNode != nil {
-		node = app.selNode.Hostname
-	}
-	streaming := ""
-	if app.logStreaming {
-		streaming = infoStyle.Render(" [streaming]")
-	} else {
-		streaming = dimStyle.Render(" [stopped]")
-	}
-	title := fmt.Sprintf("  Logs: %s on %s%s\n",
-		titleStyle.Render(app.logService),
-		titleStyle.Render(node),
-		streaming,
-	)
-
-	if len(app.logLines) == 0 {
-		return title + "  " + infoStyle.Render("Waiting for logs…")
-	}
-
-	findBarH := 0
-	if app.findActive || app.findQuery != "" {
-		findBarH = 1
-	}
-	content := renderLinesCursor(app.logLines, app.logCur, app.width, height-2-findBarH, app.viewScrollStart, app.findQuery)
-	return title + content + app.renderFindBar(app.logLines)
 }
 
 // handleFindKey routes keypresses while the find bar is open.

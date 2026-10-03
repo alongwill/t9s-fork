@@ -94,6 +94,13 @@ type App struct {
 	logStreaming  bool
 	logOrigin     AppState
 	logSessionSeq uint64
+	logArrived    []time.Time // arrival time of each line in logLines
+	logNoFollow   bool        // Autoscroll off (zero value = on)
+	logFrozenN    int         // len(logLines) when autoscroll was switched off
+	logTop        int         // first line shown while autoscroll is off
+	logFull       bool        // FullScreen
+	logTS         bool        // Timestamps
+	logWrap       bool        // Wrap
 	runLogStream  func(context.Context, string, string, chan<- string)
 
 	// Machine config
@@ -653,9 +660,9 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case logLineMsg:
 		if app.logStreaming && msg.sessionSeq == app.logSessionSeq {
-			wasAtLast := len(app.logLines) == 0 || app.logCur >= len(app.logLines)-1
 			app.logLines = append(app.logLines, msg.line)
-			if wasAtLast {
+			app.logArrived = append(app.logArrived, time.Now())
+			if !app.logNoFollow {
 				app.logCur = len(app.logLines) - 1
 			}
 			return app, waitForLine(app.logCh, msg.sessionSeq)
@@ -753,6 +760,10 @@ func (app App) View() string {
 		return "Initializing t9s..."
 	}
 
+	if app.state == StateLogs && app.logFull {
+		return app.viewFullScreenLogs()
+	}
+
 	header := app.renderHeader()
 	mainH := app.mainHeight()
 	main := app.renderMain(mainH)
@@ -768,6 +779,22 @@ func (app App) View() string {
 	// cells bleed through (k9s-style full coverage).
 	full := header + "\n" + main + footer
 	lines := strings.Split(full, "\n")
+	for i, l := range lines {
+		lines[i] = app.fillLine(l)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// viewFullScreenLogs renders the logs over the whole terminal: no header,
+// hints or footer.
+func (app App) viewFullScreenLogs() string {
+	lines := strings.Split(strings.TrimSuffix(app.renderLogs(app.height), "\n"), "\n")
+	if len(lines) > app.height {
+		lines = lines[:app.height]
+	}
+	for len(lines) < app.height {
+		lines = append(lines, "")
+	}
 	for i, l := range lines {
 		lines[i] = app.fillLine(l)
 	}

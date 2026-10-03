@@ -100,7 +100,21 @@ func buildHelpContent() string {
 	}))
 	sb.WriteByte('\n')
 
-	sb.WriteString(section("Logs / Dmesg", [][2]string{
+	sb.WriteString(section("Logs", [][2]string{
+		{"↑↓ / j k", "Select line (scrolling up turns Autoscroll off)"},
+		{"PgUp / PgDn", "Half page"},
+		{"g / Home", "Top (Autoscroll off)"},
+		{"G / End", "Bottom (Autoscroll on)"},
+		{"s", "Toggle Autoscroll: off freezes the view, +N new counts what arrives"},
+		{"f", "Toggle FullScreen (hide header, hints and footer)"},
+		{"t", "Toggle Timestamps (~ marks arrival time, UTC)"},
+		{"w", "Toggle Wrap"},
+		{"/  n  N", "Find, next, previous"},
+		{"Esc / q", "Clear find, leave FullScreen, then back"},
+	}))
+	sb.WriteByte('\n')
+
+	sb.WriteString(section("Dmesg", [][2]string{
 		{"↑↓", "Scroll"},
 		{"g", "Go to top"},
 		{"G", "Go to bottom"},

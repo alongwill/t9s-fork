@@ -257,7 +257,26 @@ The notes are in `internal/catalog/resource-notes.yaml` (about 40 types), writte
 | <kbd>r</kbd> | Reload streams |
 | <kbd>Esc</kbd> / <kbd>q</kbd> | Back |
 
-### Logs / Dmesg / Health
+### Logs
+
+A state line sits under the title: `Autoscroll:On     FullScreen:Off     Timestamps:Off     Wrap:Off`. Keys follow k9s.
+
+| Key | Action |
+|-----|--------|
+| <kbd>↑</kbd><kbd>↓</kbd> / <kbd>j</kbd><kbd>k</kbd> | Move cursor. Moving up turns Autoscroll off |
+| <kbd>PgUp</kbd> / <kbd>PgDn</kbd> | Half-page scroll |
+| <kbd>g</kbd> / <kbd>Home</kbd> | Top (Autoscroll off) |
+| <kbd>G</kbd> / <kbd>End</kbd> | Bottom (Autoscroll on) |
+| <kbd>s</kbd> | Autoscroll. Off freezes the view while lines keep arriving; the state line counts them (`+12 new`) |
+| <kbd>f</kbd> | FullScreen: hide the header, hints and footer |
+| <kbd>t</kbd> | Timestamps. Shows the time found in the line (RFC 3339, `2006/01/02 15:04:05`, klog, JSON `ts`/`time`); a line without one shows the time it arrived, marked `~`. All times are UTC |
+| <kbd>w</kbd> | Wrap long lines (off: lines are cut with `…`) |
+| <kbd>/</kbd> <kbd>n</kbd> <kbd>N</kbd> | Find, next, previous |
+| <kbd>Esc</kbd> / <kbd>q</kbd> | Clear find, leave FullScreen, then back |
+
+The level word is coloured (`ERROR` red, `WARN` yellow, `INFO` blue, `DEBUG` dim; also `level=info`, `"level":"info"`, `[INFO]` and klog `E1003`), embedded timestamps are dim and `key=` names in logfmt lines are cyan.
+
+### Dmesg / Health
 
 | Key | Action |
 |-----|--------|

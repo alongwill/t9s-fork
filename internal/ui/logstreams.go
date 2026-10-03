@@ -106,7 +106,12 @@ func (app App) startLogStream(target string) (App, tea.Cmd) {
 	app.logOrigin = app.state
 	app.logService = target
 	app.logLines = nil
+	app.logArrived = nil
 	app.logCur = 0
+	app.logNoFollow = false
+	app.logFrozenN = 0
+	app.logTop = 0
+	app.logFull = false
 	app.logStreaming = true
 	app = app.goTo(StateLogs)
 	app.logCh = make(chan string, 500)
