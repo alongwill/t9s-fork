@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/netip"
 	"os/exec"
 	"sort"
 	"strconv"
@@ -127,16 +128,7 @@ func (c *Client) GetNodes(ctx context.Context) ([]Node, error) {
 		// its addresses should match it (the self-report case).
 		// For workers reported by another node, fall back to the last address
 		// (Talos lists VIP first, actual IP last for multi-address nodes).
-		ip := ""
-		for _, addr := range e.Spec.Addresses {
-			if addr == e.Node {
-				ip = addr
-				break
-			}
-		}
-		if ip == "" && len(e.Spec.Addresses) > 0 {
-			ip = e.Spec.Addresses[len(e.Spec.Addresses)-1]
-		}
+		ip := pickMemberIP(e.Node, e.Spec.Addresses)
 
 		// Display IP: node IP only (VIP would be confusing in the UI).
 		displayIP := ip
@@ -154,6 +146,37 @@ func (c *Client) GetNodes(ctx context.Context) ([]Node, error) {
 		})
 	}
 	return nodes, nil
+}
+
+// pickMemberIP chooses the address t9s targets for a member. An address equal
+// to the responding node wins; otherwise the last IPv4 address (a VIP is listed
+// first), otherwise the last address. Link-local addresses are skipped unless
+// nothing else is left.
+func pickMemberIP(node string, addrs []string) string {
+	for _, a := range addrs {
+		if a == node {
+			return a
+		}
+	}
+	var lastV4, lastAny, lastRaw string
+	for _, a := range addrs {
+		lastRaw = a
+		ip, err := netip.ParseAddr(a)
+		if err != nil || ip.IsLinkLocalUnicast() {
+			continue
+		}
+		lastAny = a
+		if ip.Is4() {
+			lastV4 = a
+		}
+	}
+	switch {
+	case lastV4 != "":
+		return lastV4
+	case lastAny != "":
+		return lastAny
+	}
+	return lastRaw
 }
 
 // --- Services ---
