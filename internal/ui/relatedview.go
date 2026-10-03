@@ -585,7 +585,7 @@ func (app App) relFinishDiff() App {
 	app = app.setRel(func(rv *relatedView) { rv.dseq = 0 })
 	app.browser = app.browser.push(pane{
 		kind: paneDiff, title: "Diff " + p.rel.dname[0] + " ↔ " + p.rel.dname[1],
-		legend: "(- first marked, + second)", diff: lines,
+		legend: "(left: first marked, right: second)", diff: lines, side: true,
 	})
 	app = app.syncBrowserState()
 	app.statusMsg = ""

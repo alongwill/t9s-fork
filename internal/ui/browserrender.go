@@ -74,7 +74,11 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 	case paneCompare:
 		body = app.compareLines(p, iw, inner, active)
 	case paneDiff:
-		body = app.diffPaneLines(p, iw, inner)
+		if p.side {
+			body = app.diffSideLines(p, iw, inner)
+		} else {
+			body = app.diffPaneLines(p, iw, inner)
+		}
 	case paneRelated:
 		body = app.relatedLines(p, iw, inner, active)
 	}

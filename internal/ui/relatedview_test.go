@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -357,5 +358,51 @@ func TestJumpToWriterExplainsWhenThereIsNoOwner(t *testing.T) {
 	}
 	if top, _ := app.browser.top(); top.kind != paneInstances {
 		t.Error("J without an owner must not move")
+	}
+}
+
+func TestSideBySidePairsChangeRuns(t *testing.T) {
+	d := unifiedDiff("a", "b", "x\nmtu: 1500\nup: true\ny\n", "x\nmtu: 1450\nup: true\nextra: 1\ny\n", 3)
+	rows := sideBySide(d)
+	var pair *sbsRow
+	for i := range rows {
+		if rows[i].lop == '-' {
+			pair = &rows[i]
+		}
+	}
+	if pair == nil || pair.left != "mtu: 1500" || pair.right != "mtu: 1450" || pair.rop != '+' {
+		t.Fatalf("change not paired on one row: %+v", rows)
+	}
+	var onlyRight bool
+	for _, r := range rows {
+		onlyRight = onlyRight || (r.lop == 0 && r.rop == '+' && r.right == "extra: 1")
+	}
+	if !onlyRight {
+		t.Errorf("an added line should have an empty left side: %+v", rows)
+	}
+}
+
+func TestRelatedDiffRendersSideBySide(t *testing.T) {
+	app := relApp(120, 40)
+	lines := unifiedDiff("A eth0", "B eth0", "a: 1\nb: 2\n", "a: 1\nb: 3\n", 3)
+	app.browser = app.browser.push(pane{kind: paneDiff, title: "Diff", diff: lines, side: true})
+	out := ansi.Strip(checkBudget(t, app.syncBrowserState(), 120))
+	if !strings.Contains(out, "b: 2") || !strings.Contains(out, "│ b: 3") {
+		t.Errorf("not side by side:\n%s", out)
+	}
+}
+
+func TestRelFamilyDisambiguatesDocumentAndResourceOfSameName(t *testing.T) {
+	res := talos.ResourceDef{Type: "VolumeConfigs.block.talos.dev", DisplayType: "VolumeConfig", DefaultNamespace: "block"}
+	b := browser{defs: []talos.ResourceDef{res}}
+	lists := map[string]relList{relKey("block", res.Type): {items: metas("block", res.Type, "EPHEMERAL", "STATE")}}
+	docs := []talos.ConfigDoc{{Kind: "VolumeConfig", Name: "EPHEMERAL"}}
+	tb := buildRelTable(b.relFamily("Volume"), lists, docs, cfgLoaded)
+	var titles []string
+	for _, c := range tb.cols {
+		titles = append(titles, c.title)
+	}
+	if !reflect.DeepEqual(titles, []string{"VolumeConfig@document", "VolumeConfig@resource"}) {
+		t.Fatalf("columns = %v", titles)
 	}
 }

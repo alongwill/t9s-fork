@@ -56,6 +56,7 @@ type pane struct {
 	cmp      compareView          // paneCompare
 	diff     []diffLine           // paneDiff
 	legend   string               // paneDiff: replaces the compare legend in the title
+	side     bool                 // paneDiff: side by side instead of unified
 	rel      relatedView          // paneRelated
 	loading  bool
 	err      string
@@ -514,6 +515,9 @@ func (app App) paneLen(p pane) int {
 	case paneCompare:
 		return len(p.cmp.rows)
 	case paneDiff:
+		if p.side {
+			return len(sideBySide(p.diff))
+		}
 		return len(p.diff)
 	}
 	return 0

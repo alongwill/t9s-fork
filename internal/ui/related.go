@@ -268,6 +268,26 @@ func buildRelTable(members []relMember, lists map[string]relList, docs []talos.C
 	var data []colData
 	rowSet := map[string]bool{}
 
+	// a config kind and a resource type can share a name (VolumeConfig): tell
+	// the two columns apart, the document one first
+	cfgNames := map[string]bool{}
+	for _, m := range members {
+		if m.config {
+			cfgNames[m.name] = true
+		}
+	}
+	collides := func(m relMember) bool {
+		if !cfgNames[m.name] {
+			return false
+		}
+		for _, o := range members {
+			if o.config != m.config && o.name == m.name {
+				return true
+			}
+		}
+		return false
+	}
+
 	add := func(c relCol, d colData) {
 		t.cols = append(t.cols, c)
 		data = append(data, d)
@@ -293,7 +313,11 @@ func buildRelTable(members []relMember, lists map[string]relList, docs []talos.C
 			default:
 				d.state = cellLoading
 			}
-			add(relCol{title: m.name, role: roleConfig, config: true, kind: m.kind}, d)
+			title := m.name
+			if collides(m) {
+				title += "@document"
+			}
+			add(relCol{title: title, role: roleConfig, config: true, kind: m.kind}, d)
 			continue
 		}
 
@@ -346,7 +370,11 @@ func buildRelTable(members []relMember, lists map[string]relList, docs []talos.C
 		}
 		l, ok := lists[relKey(m.def.DefaultNamespace, m.def.Type)]
 		cells, st, _ := fill(l, ok, false)
-		add(relCol{title: m.name, role: m.role, def: m.def, ns: m.def.DefaultNamespace}, colData{byKey: cells, state: st})
+		title := m.name
+		if collides(m) {
+			title += "@resource"
+		}
+		add(relCol{title: title, role: m.role, def: m.def, ns: m.def.DefaultNamespace}, colData{byKey: cells, state: st})
 	}
 
 	t.rows = make([]string, 0, len(rowSet))
