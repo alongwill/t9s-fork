@@ -108,6 +108,10 @@ func (app App) handleResourceDefs(msg resourceDefsMsg) (App, tea.Cmd) {
 	app.browser.defsLoading = false
 	if msg.err != nil {
 		app.browser.defsErr = msg.err.Error()
+		if w := app.browser.pendingCmd; w != "" { // the awaited type can't be resolved
+			app.browser.pendingCmd = ""
+			return app.unknownCommand(w), nil
+		}
 		app.statusMsg = errStyle.Render("Error: " + msg.err.Error())
 		return app, nil
 	}
@@ -120,6 +124,9 @@ func (app App) handleResourceDefs(msg resourceDefsMsg) (App, tea.Cmd) {
 	app.browser.defs = msg.defs
 	app.browser.defsErr = ""
 	app.statusMsg = ""
+	if app.browser.pendingCmd != "" {
+		return app.runPendingCommand()
+	}
 	if app.hasPalette() { // the palette was opened before the definitions arrived
 		return app.paletteCounts()
 	}

@@ -166,25 +166,18 @@ func (app App) paletteSelect() (App, tea.Cmd) {
 	return app.jumpTo(rows[p.cur])
 }
 
-// jumpTo replaces the stack with [categories, types(category)], cursors on the
-// entry, and presses Enter on it. Esc afterwards lands in its category.
-func (app App) jumpTo(e paletteEntry) (App, tea.Cmd) {
+// categoryStack replaces the stack with [categories, types(catKey)] and puts
+// the cursor on entry idx of the types pane.
+func (app App) categoryStack(catKey string, idx int) App {
 	b := app.browser
 	cats := b.categoryRows("")
 	catIdx := 0
 	for i, r := range cats {
-		if r.key == e.catKey {
+		if r.key == catKey {
 			catIdx = i
 		}
 	}
-	ents := b.typeEntries(e.catKey, "")
-	idx := 0
-	for i, t := range ents {
-		if t.config == e.config && t.name() == e.name {
-			idx = i
-		}
-	}
-	vis := b.typeVisual(e.catKey, "")
+	vis := b.typeVisual(catKey, "")
 	typeScroll := 0
 	if idx > 0 {
 		typeScroll = clampScrollStart(0, visualIndex(vis, idx), len(vis), app.paneInnerRows(paneTypes))
@@ -192,19 +185,43 @@ func (app App) jumpTo(e paletteEntry) (App, tea.Cmd) {
 	b.stack = []pane{
 		{kind: paneCategories, title: "Categories", cur: catIdx,
 			scroll: clampScrollStart(0, catIdx, len(cats), app.paneInnerRows(paneCategories))},
-		{kind: paneTypes, title: catalog.Label(e.catKey), category: e.catKey, cur: idx, scroll: typeScroll},
+		{kind: paneTypes, title: catalog.Label(catKey), category: catKey, cur: idx, scroll: typeScroll},
 	}
 	b = b.clearFind()
 	b.fullscreen, b.prompting = false, false
 	app.browser = b
 	app.statusMsg = ""
-	app = app.syncBrowserState()
+	return app.syncBrowserState()
+}
 
-	cmd := app.loadCounts(b.typesIn(e.catKey))
-	app.browser = app.browser.markCountsLoading(b.typesIn(e.catKey))
+// loadCategory starts the lazy loads that entering a category triggers.
+func (app App) loadCategory(catKey string) (App, tea.Cmd) {
+	types := app.browser.typesIn(catKey)
+	cmd := app.loadCounts(types)
+	app.browser = app.browser.markCountsLoading(types)
 	app, cfgCmd := app.ensureConfig()
+	return app, tea.Batch(cmd, cfgCmd)
+}
+
+// jumpCategory shows one category on the current node (`:net`).
+func (app App) jumpCategory(catKey string) (App, tea.Cmd) {
+	app = app.categoryStack(catKey, 0)
+	return app.loadCategory(catKey)
+}
+
+// jumpTo replaces the stack with [categories, types(category)], cursors on the
+// entry, and presses Enter on it. Esc afterwards lands in its category.
+func (app App) jumpTo(e paletteEntry) (App, tea.Cmd) {
+	idx := 0
+	for i, t := range app.browser.typeEntries(e.catKey, "") {
+		if t.config == e.config && t.name() == e.name {
+			idx = i
+		}
+	}
+	app = app.categoryStack(e.catKey, idx)
+	app, loadCmd := app.loadCategory(e.catKey)
 	app, enterCmd := app.browserEnter()
-	return app, tea.Batch(cmd, cfgCmd, enterCmd)
+	return app, tea.Batch(loadCmd, enterCmd)
 }
 
 // --- prompt handling for the palette ---

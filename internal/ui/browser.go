@@ -77,6 +77,7 @@ type browser struct {
 
 	defsLoading bool
 	defsErr     string
+	pendingCmd  string // `:` command waiting for the definitions
 
 	docs     []talos.ConfigDoc // the node's machine config documents
 	cfgState cfgState

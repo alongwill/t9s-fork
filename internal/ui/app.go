@@ -212,6 +212,8 @@ type App struct {
 	resourceDefs map[string][]talos.ResourceDef // node IP → cached `get rd`
 	resSem       chan struct{}                  // caps concurrent per-type counts
 	configDocs   map[string]cfgCacheEntry       // node IP → machine config documents
+	cmd          cmdPrompt                      // `:` command prompt
+	cmdHistory   []string                       // submitted commands, oldest first
 
 	// Find in log/dmesg views (/ n N)
 	findInput  textinput.Model
@@ -913,6 +915,9 @@ func (app App) renderFooter() string {
 	if app.searchActive {
 		bar := dimStyle.Render("/") + app.searchInput.View()
 		return sepLine + "\n  " + bar
+	}
+	if app.cmd.active {
+		return app.commandFooter(sepLine)
 	}
 	if isBrowserState(app.state) && app.browser.prompting {
 		return sepLine + "\n  " + dimStyle.Render("/") + app.browser.input.View()

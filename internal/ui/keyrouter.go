@@ -8,6 +8,11 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app.handleSearchKey(msg)
 	}
 
+	// Command prompt (`:`) swallows every key until submitted or cancelled.
+	if app.cmd.active {
+		return app.handleCommandKey(msg)
+	}
+
 	// Browser prompt (`/` filter, YAML find) swallows every key, including
 	// the global ones below (`x`, `?`).
 	if isBrowserState(app.state) && app.browser.prompting {
@@ -29,6 +34,11 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			app.statusMsg = dimStyle.Render("Cancelled.")
 			return app, nil
 		}
+	}
+
+	// Command mode from the node list and the browser
+	if msg.String() == ":" && isCmdState(app.state) {
+		return app.openCommandPrompt()
 	}
 
 	// Global help view via ?
