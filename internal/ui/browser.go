@@ -385,7 +385,7 @@ func (app App) browserLayout() []paneBox {
 
 // paneInnerRows is the number of list rows (or YAML lines) visible in a pane.
 func (app App) paneInnerRows(k paneKind) int {
-	rows := app.mainHeight() - 2
+	rows := app.mainHeight() - 2 - app.nextStepRows()
 	if k == paneInstances || k == paneAliases || k == paneCompare {
 		rows-- // column header
 	}

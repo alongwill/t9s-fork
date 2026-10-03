@@ -17,6 +17,7 @@ import (
 //
 //	:nodes | :no                        node list
 //	:aliases | :alias | :a              all-types palette
+//	:tips on | :tips off                tips in the status line (this session)
 //	:q | :q! | :quit                    quit
 //	:? | :h | :help                     help
 //	:<category key or label prefix>     that category on the current node
@@ -238,6 +239,8 @@ func (app App) runCommand(text string) (App, tea.Cmd) {
 			app = app.exitBrowser()
 		}
 		return app, nil
+	case "tips on", "tips off":
+		return app.setTips(word == "tips on"), nil
 	case "q", "q!", "quit":
 		app.cleanup()
 		return app, tea.Quit

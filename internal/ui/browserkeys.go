@@ -501,6 +501,7 @@ func (app App) openBrowser(n talos.Node) (App, tea.Cmd) {
 	app, _ = app.useCachedConfig()
 	if defs, ok := app.resourceDefs[n.IP]; ok {
 		app.browser.defs = defs
+		app = app.showTip()
 		return app.countAllTypes()
 	}
 	app.browser.defsLoading = true
@@ -525,7 +526,7 @@ func (app App) browserEnter() (App, tea.Cmd) {
 		app.browser = b.push(pane{kind: paneTypes, title: row.label, category: row.key})
 		cmd := app.loadCounts(types) // skips types already counted or in flight
 		app.browser = app.browser.markCountsLoading(types)
-		app = app.syncBrowserState()
+		app = app.syncBrowserState().showTip()
 		var cfgCmd tea.Cmd
 		app, cfgCmd = app.ensureConfig()
 		return app, tea.Batch(cmd, cfgCmd)

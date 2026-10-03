@@ -75,6 +75,13 @@ func buildHelpContent() string {
 	sb.WriteString(browserHelp(section))
 	sb.WriteByte('\n')
 
+	sb.WriteString(section("Learning (resource browser)", [][2]string{
+		{"d", "Describe the selected type: what it is, its Ubuntu equivalent, what feeds it"},
+		{"next-step line", "Dim line under the panes: the selected row and the keys worth pressing next"},
+		{":tips off / on", "Silence or restore the tips in the status line (this session)"},
+	}))
+	sb.WriteByte('\n')
+
 	sb.WriteString(section("Services", [][2]string{
 		{"↑↓ / j k", "Navigate"},
 		{"↵ / l", "Stream logs"},

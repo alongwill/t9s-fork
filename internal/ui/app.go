@@ -226,6 +226,9 @@ type App struct {
 	configDocs        map[string]cfgCacheEntry // node IP → machine config documents
 	cmd               cmdPrompt                // `:` command prompt
 	cmdHistory        []string                 // submitted commands, oldest first
+	tipIdx            int                      // next tip to show; set to -1 in New
+	tipMsg            string                   // the status text of the last tip shown
+	tipsOff           bool                     // :tips off
 
 	// Find in log/dmesg views (/ n N)
 	findInput  textinput.Model
@@ -268,6 +271,7 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 		helpVP:       viewport.New(80, 20),
 		runLogStream: client.StreamLogs,
 		resSem:       make(chan struct{}, 8),
+		tipIdx:       -1,
 	}
 }
 

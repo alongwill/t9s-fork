@@ -27,17 +27,23 @@ func (app App) renderBrowser(height int) string {
 		return ""
 	}
 	stack := app.browser.stack
+	extra := app.nextStepRows()
+	paneH := height - extra
 	cols := make([][]string, len(layout))
 	for i, box := range layout {
-		cols[i] = app.renderPane(stack[box.idx], box.w, height, box.idx == len(stack)-1)
+		cols[i] = app.renderPane(stack[box.idx], box.w, paneH, box.idx == len(stack)-1)
 	}
 	var sb strings.Builder
-	for r := 0; r < height; r++ {
+	for r := 0; r < paneH; r++ {
 		var line strings.Builder
 		for _, c := range cols {
 			line.WriteString(c[r])
 		}
 		sb.WriteString(app.fillLine(line.String()))
+		sb.WriteByte('\n')
+	}
+	if extra > 0 {
+		sb.WriteString(app.fillLine(app.nextStepLine()))
 		sb.WriteByte('\n')
 	}
 	return sb.String()

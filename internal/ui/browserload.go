@@ -137,6 +137,7 @@ func (app App) handleResourceDefs(msg resourceDefsMsg) (App, tea.Cmd) {
 	app.browser.defs = msg.defs
 	app.browser.defsErr = ""
 	app.statusMsg = ""
+	app = app.showTip()
 	var countCmd tea.Cmd
 	app, countCmd = app.countAllTypes()
 	if app.browser.pendingCmd != "" {
