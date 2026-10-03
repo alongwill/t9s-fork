@@ -12,12 +12,12 @@ import (
 const browserTimeout = 10 * time.Second
 
 func (app App) loadResourceDefs() tea.Cmd {
-	client := app.client
+	src := app.src()
 	node := app.browser.node.IP
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), browserTimeout)
 		defer cancel()
-		defs, err := client.GetResourceDefinitions(ctx, node)
+		defs, err := src.Definitions(ctx, node)
 		return resourceDefsMsg{node: node, defs: defs, err: err}
 	}
 }
@@ -26,7 +26,7 @@ func (app App) loadResourceDefs() tea.Cmd {
 // flight. One cmd per type, at most 8 running at once (resSem is shared by all
 // batches). The caller's browser copy is updated via markCountsLoading.
 func (app App) loadCounts(types []talos.ResourceDef) tea.Cmd {
-	client := app.client
+	src := app.src()
 	node := app.browser.node.IP
 	sem := app.resSem
 	if sem == nil { // bare App in tests
@@ -43,7 +43,7 @@ func (app App) loadCounts(types []talos.ResourceDef) tea.Cmd {
 			defer func() { <-sem }()
 			ctx, cancel := context.WithTimeout(context.Background(), browserTimeout)
 			defer cancel()
-			items, err := client.ListResources(ctx, node, d.DefaultNamespace, d.Type)
+			items, err := src.List(ctx, node, d.DefaultNamespace, d.Type)
 			msg := resourceCountMsg{node: node, typ: d.Type, n: len(items)}
 			if len(items) == 1 {
 				msg.only = items[0]
@@ -76,18 +76,18 @@ func (b browser) markCountsLoading(types []talos.ResourceDef) browser {
 }
 
 func (app App) loadInstances(d talos.ResourceDef) tea.Cmd {
-	client := app.client
+	src := app.src()
 	node := app.browser.node.IP
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), browserTimeout)
 		defer cancel()
-		items, err := client.ListResources(ctx, node, d.DefaultNamespace, d.Type)
+		items, err := src.List(ctx, node, d.DefaultNamespace, d.Type)
 		return resourceInstancesMsg{node: node, typ: d.Type, items: items, err: err}
 	}
 }
 
 func (app App) loadYAML(d talos.ResourceDef, m talos.ResourceMeta) tea.Cmd {
-	client := app.client
+	src := app.src()
 	node := app.browser.node.IP
 	ns := m.Namespace
 	if ns == "" {
@@ -96,7 +96,7 @@ func (app App) loadYAML(d talos.ResourceDef, m talos.ResourceMeta) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), browserTimeout)
 		defer cancel()
-		y, err := client.GetResourceYAML(ctx, node, ns, d.Type, m.ID)
+		y, err := src.GetYAML(ctx, node, ns, d.Type, m.ID)
 		return resourceYAMLMsg{node: node, typ: d.Type, id: m.ID, yaml: y, err: err}
 	}
 }

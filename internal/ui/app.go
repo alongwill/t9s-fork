@@ -211,6 +211,7 @@ type App struct {
 	browser      browser
 	resourceDefs map[string][]talos.ResourceDef // node IP → cached `get rd`
 	resSem       chan struct{}                  // caps concurrent per-type counts
+	source       talos.ResourceSource           // resource browser data source (nil = CLI)
 	configDocs   map[string]cfgCacheEntry       // node IP → machine config documents
 	cmd          cmdPrompt                      // `:` command prompt
 	cmdHistory   []string                       // submitted commands, oldest first
@@ -257,6 +258,14 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 		runLogStream: client.StreamLogs,
 		resSem:       make(chan struct{}, 8),
 	}
+}
+
+// src returns the resource browser's data source, defaulting to the CLI.
+func (app App) src() talos.ResourceSource {
+	if app.source != nil {
+		return app.source
+	}
+	return talos.NewCLISource(app.client)
 }
 
 func (app App) Init() tea.Cmd {
