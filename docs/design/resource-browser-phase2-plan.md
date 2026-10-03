@@ -79,11 +79,7 @@ committed once with failing tests because of `;`). Do not push.
   the right in place of YAML:
   - Config kind: the `desc` from the catalogue, plus `since`, plus the group label.
   - Resource type: the `rd` definition (type, display type, aliases, default namespace,
-    sensitivity) plus field docs from the Talos `explain` subcommand. First check that the
-    subcommand exists and its arguments/output by reading the Talos source with Read/Grep
-    (`~/sources/github.com/siderolabs/talos/cmd/`, search for `explain`). If it does not exist on
-    v1.14, show the `rd` fields only and say so in your report. Wrap the call in
-    `internal/talos/resources.go` (`ExplainResource`), cache per type, 10 s timeout.
+    sensitivity). There is no per-field documentation source, so show the `rd` fields only.
 - k9s parity: `d` = describe, `y` = YAML. In the describe pane, `y` switches to YAML and `d`
   switches back. `esc`/`q` close it.
 - Tests for the toggling and for the config-kind describe text.
@@ -132,5 +128,5 @@ committed once with failing tests because of `;`). Do not push.
 
 1. All milestones committed, `go build ./... && go vet ./... && go test ./...` green.
 2. A short report to Andrew in this pane: what works, what was not verified against a live
-   cluster, the exact CLI commands he should run and paste to check the machine-config shape
-   and the `explain` output, and any deviation from this plan with the reason.
+   cluster, the exact CLI commands he should run and paste to check the machine-config shape,
+   and any deviation from this plan with the reason.

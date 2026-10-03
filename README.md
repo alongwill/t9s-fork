@@ -208,7 +208,7 @@ The types pane has two sections. **CONFIG** lists the machine-config document ki
 | <kbd>Esc</kbd> / <kbd>q</kbd> | all | Clear the filter or search first, then go back one pane; from the first pane back to the node list |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | all | Reload the data behind the current pane |
 
-Describe is the learning page of the browser, see [Learning Talos with t9s](#learning-talos-with-t9s). Talos v1.14 has no `explain` subcommand, so resource field documentation is not available.
+Describe is the learning page of the browser, see [Learning Talos with t9s](#learning-talos-with-t9s).
 
 **Data source (`--source=auto|grpc|cli`).** The resource browser can read COSI resources over Talos' gRPC API (`pkg/machinery/client`, same talosconfig and context) or through subprocesses of the Talos CLI. `auto` (default) dials gRPC in the background with a 5 s timeout and falls back to the CLI, noting `gRPC unavailable (<reason>), using CLI` in the status line, so the browser still works when the talosconfig auth mode is not supported by the library. The header shows `src: grpc` or `src: cli`. Every other view always uses the CLI.
 

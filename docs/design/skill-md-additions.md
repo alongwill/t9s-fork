@@ -77,8 +77,7 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
   the palette reuses the filter prompt, with `handlePalettePromptKey` for `esc`/`enter`). A `:` command that
   needs the resource definitions before they have arrived is parked in `browser.pendingCmd` and run by
   `handleResourceDefs`.
-- **Describe has no field docs:** Talos v1.14 has no `explain` subcommand, so resource describe shows the
-  `rd` fields only.
+- **Describe has no per-field docs:** it shows the `rd` fields, the knowledge note and the relationships.
 
 ## Phase 3 patterns
 

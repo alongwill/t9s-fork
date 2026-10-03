@@ -39,7 +39,6 @@ does not support).
   `~/sources/github.com/siderolabs/talos/cmd/` (find it with Glob `**/talos/get.go`). Copy its
   approach for resolving a type/alias via `ResourceDefinitions`, `COSI.List`, and `COSI.Watch`
   / `WatchKind` with bootstrap contents. Read it, do not guess the API.
-- Talos v1.14 has **no** `explain` subcommand (phase 2 confirmed). Do not add one.
 
 ## Milestone 1: `ResourceSource` interface
 

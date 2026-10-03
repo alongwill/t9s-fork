@@ -101,7 +101,7 @@ Below 120 columns, only the two rightmost panes are shown.
 | `:` | command mode: `:addr`, `:dhcpv4config`, `:nodes`, `:net` jump straight there (aliases from `get rd`, plus config kind names, plus category names) | `:pod` |
 | `/` | filter the current list (fuzzy) | same |
 | `y` | YAML of selection (default in the right pane) | same |
-| `d` | toggle **describe** (explain) in the right pane: field docs for the type | `d` describe |
+| `d` | toggle **describe** in the right pane: what the type is, its Ubuntu equivalent, what feeds it | `d` describe |
 | `w` | toggle line wrap in YAML pane | `w` |
 | `f` | YAML pane full screen | `f` |
 | `q` | back one level (same as Esc) | `q` |
@@ -128,7 +128,7 @@ All through the existing subprocess client (`internal/talos/client.go`), one nod
 | YAML of one instance | `get <type> <id> --namespace <ns> -o yaml` | not cached |
 | Config docs present | `get machineconfig v1alpha1 -o yaml` (existing `GetMachineConfig`), split the `spec` string into documents, key by `kind` (+ `name`) | per node, 30 s |
 | Config kind catalogue | embedded `catalog.json` (see below) | build time |
-| Explain | `explain <type>` (resources). Config docs: the blurb from `catalog.json` | per type |
+| Describe text | Resources: the notes in `resource-notes.yaml`. Config docs: the blurb from `catalog.json` | build time |
 
 Verify the `rd` spec field names against the cosi-project/runtime version Talos v1.14 pins
 before coding (`pkg/resource/meta/spec`).
@@ -203,7 +203,7 @@ Deferred / not done:
 
 - Not verified against a live cluster or an Omni-managed talosconfig. A failed gRPC dial falls back to the CLI, but a source that dials fine and then fails per call is not retried on the CLI.
 - Watch covers resources only, not config documents (they are a snapshot of the machine config).
-- Compare diffs against the browser's node only, not pairwise. `d` describe has no field docs (no `explain` in v1.14).
+- Compare diffs against the browser's node only, not pairwise. `d` describe has no per-field documentation.
 - Compare of config documents always reads the machine config through the CLI client.
 - The diff falls back to remove-all/add-all when the differing region exceeds about 4M line pairs.
 - Open question 3 (config document to produced resources links) is untouched.
