@@ -361,7 +361,13 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return app.handleResourceDefs(msg)
 
 	case depsMsg:
-		return app.handleDeps(msg), nil
+		return app.handleDeps(msg).afterDeps()
+
+	case relListMsg:
+		return app.handleRelList(msg), nil
+
+	case relYAMLMsg:
+		return app.handleRelYAML(msg), nil
 
 	case resourceCountMsg:
 		return app.handleResourceCount(msg), nil
@@ -860,6 +866,9 @@ func (app App) renderHeader() string {
 	topBar := left + fill + right
 
 	resource := dimStyle.Render("  " + resourceLine(app))
+	if isBrowserState(app.state) { // styled per segment: chips must not inherit the dim wrapper
+		resource = "  " + app.browserHeaderStyled()
+	}
 	hints := app.renderHintsPanel()
 	sepLine := strings.Repeat("─", app.width)
 

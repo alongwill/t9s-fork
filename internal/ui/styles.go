@@ -143,3 +143,68 @@ func containsAny(s string, subs ...string) bool {
 	}
 	return false
 }
+
+// Role colours: the three layers of a pipeline (Config → Spec → Status) look the
+// same everywhere they appear (related view, types pane). AdaptiveColor keeps
+// them readable on light terminals.
+var (
+	colorRoleConfig  = lipgloss.AdaptiveColor{Light: "#8250df", Dark: "#bc8cff"} // magenta / purple
+	colorRoleSpec    = lipgloss.AdaptiveColor{Light: "#0969da", Dark: "#58a6ff"} // blue
+	colorRoleStatus  = lipgloss.AdaptiveColor{Light: "#1a7f37", Dark: "#3fb950"} // green
+	colorRoleOther   = lipgloss.AdaptiveColor{Light: "#6e7781", Dark: "#8b949e"} // grey
+	colorOnAccent    = lipgloss.AdaptiveColor{Light: "#ffffff", Dark: "#0d1117"} // text on a coloured chip
+	colorMarkAccent  = lipgloss.AdaptiveColor{Light: "#9a6700", Dark: "#e3b341"} // marked cell, highlighted box
+	colorLockAccent  = lipgloss.AdaptiveColor{Light: "#cf222e", Dark: "#ff7b72"}
+	colorBorderQuiet = lipgloss.AdaptiveColor{Light: "#afb8c1", Dark: "#444c56"}
+)
+
+func roleColor(r relRole) lipgloss.AdaptiveColor {
+	switch r {
+	case roleConfig:
+		return colorRoleConfig
+	case roleSpec:
+		return colorRoleSpec
+	case roleStatus:
+		return colorRoleStatus
+	}
+	return colorRoleOther
+}
+
+// roleStyle is the foreground style of a role.
+func roleStyle(r relRole) lipgloss.Style { return lipgloss.NewStyle().Foreground(roleColor(r)) }
+
+// chip is a small coloured badge: ` text ` on a background.
+func chip(text string, bg lipgloss.TerminalColor) string {
+	return lipgloss.NewStyle().Background(bg).Foreground(colorOnAccent).Bold(true).Padding(0, 1).Render(text)
+}
+
+// Category accents: one colour per browser category. They colour the category
+// name, the breadcrumb segment and the active pane's border.
+var categoryAccents = map[string]lipgloss.AdaptiveColor{
+	"networking": {Light: "#0a7f8a", Dark: "#39c5cf"}, // cyan
+	"siderolink": {Light: "#bf3989", Dark: "#f778ba"}, // pink
+	"kubernetes": {Light: "#0550ae", Dark: "#58a6ff"}, // blue
+	"cluster":    {Light: "#8250df", Dark: "#bc8cff"}, // magenta
+	"block":      {Light: "#bc4c00", Dark: "#ffa657"}, // orange
+	"storage":    {Light: "#9a6700", Dark: "#e3b341"}, // yellow
+	"cri":        {Light: "#7d4e00", Dark: "#d29922"}, // amber
+	"containers": {Light: "#6639ba", Dark: "#d2a8ff"}, // lilac
+	"hypervisor": {Light: "#a40e26", Dark: "#ff9bce"},
+	"hardware":   {Light: "#57606a", Dark: "#adbac7"},
+	"security":   {Light: "#cf222e", Dark: "#ff7b72"}, // red
+	"extensions": {Light: "#116329", Dark: "#7ee787"},
+	"runtime":    {Light: "#1a7f37", Dark: "#3fb950"}, // green
+}
+
+var accentDefault = lipgloss.AdaptiveColor{Light: "#0a7f8a", Dark: "#00b4d8"}
+
+func categoryAccent(key string) lipgloss.AdaptiveColor {
+	if c, ok := categoryAccents[key]; ok {
+		return c
+	}
+	return accentDefault
+}
+
+func accentStyle(key string) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(categoryAccent(key)).Bold(true)
+}

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 
@@ -67,16 +68,20 @@ func TestConfigAbsentKindIsGreyed(t *testing.T) {
 	out := app.renderBrowser(app.mainHeight())
 	find := func(name string) string {
 		for _, l := range plainLines(out) {
-			if strings.Contains(l, name) {
+			if strings.Contains(ansi.Strip(l), name) {
 				return l
 			}
 		}
 		t.Fatalf("%s not rendered", name)
 		return ""
 	}
-	esc := func(l string) int { return strings.Count(l, "\x1b[") }
-	if esc(find("BondConfig")) <= esc(find("DHCPv4Config")) {
-		t.Errorf("absent BondConfig should carry more style escapes than present DHCPv4Config")
+	// an absent kind is one dim run (grey = ANSI256 59); a present one is not
+	const dimRun = "\x1b[38;5;59m  "
+	if !strings.Contains(find("BondConfig"), dimRun+"BondConfig") {
+		t.Errorf("absent BondConfig should be one dim run: %q", find("BondConfig"))
+	}
+	if strings.Contains(find("DHCPv4Config"), dimRun+"DHCPv4") {
+		t.Errorf("present DHCPv4Config must not be dim: %q", find("DHCPv4Config"))
 	}
 }
 

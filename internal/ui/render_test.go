@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 
@@ -620,14 +621,15 @@ func TestRenderBrowserGreyedRowIsDim(t *testing.T) {
 		t.Fatalf("row %s not rendered\n%s", name, out)
 		return ""
 	}
-	// Borders and the cursor row carry escapes too, so compare against a
-	// populated, unselected row: only dim styling can add more.
-	esc := func(l string) int { return strings.Count(l, "\x1b[") }
-	base := esc(find("Thing02"))
+	// A dim row is one run in the grey colour (ANSI256 59); populated rows are not.
+	const dimRun = "\x1b[38;5;59m  "
+	if strings.Contains(find("Thing02"), dimRun+"Thing02") {
+		t.Errorf("populated Thing02 must not be dim: %q", find("Thing02"))
+	}
 	for name, marker := range map[string]string{"Thing01": " -", "Thing03": "lock"} {
 		l := find(name)
-		if esc(l) <= base || !strings.Contains(l, marker) {
-			t.Errorf("%s should be dim and show %q (escapes %d vs %d): %q", name, marker, esc(l), base, l)
+		if !strings.Contains(l, dimRun+name) || !strings.Contains(ansi.Strip(l), marker) {
+			t.Errorf("%s should be dim and show %q: %q", name, marker, l)
 		}
 	}
 	for _, c := range []struct {
@@ -650,7 +652,7 @@ func TestRenderBrowserTwoPaneCollapseBelow120(t *testing.T) {
 	for _, tc := range []struct{ w, panes int }{{80, 2}, {119, 2}, {120, 3}, {200, 3}} {
 		app := browserApp(tc.w, 30, 4, 10)
 		first := strings.SplitN(app.renderBrowser(app.mainHeight()), "\n", 2)[0]
-		if got := strings.Count(first, "┌"); got != tc.panes {
+		if got := strings.Count(first, "╭"); got != tc.panes {
 			t.Errorf("width %d: %d panes, want %d\n%s", tc.w, got, tc.panes, first)
 		}
 		if strings.Contains(first, "Categories") != (tc.panes == 4) {
@@ -665,7 +667,7 @@ func TestRenderBrowserFullScreenYAML(t *testing.T) {
 		app.browser.fullscreen = true
 		out := app.renderBrowser(app.mainHeight())
 		first := strings.SplitN(out, "\n", 2)[0]
-		if strings.Count(first, "┌") != 1 || lipgloss.Width(first) != sz.w {
+		if strings.Count(first, "╭") != 1 || lipgloss.Width(first) != sz.w {
 			t.Errorf("%dx%d: want one full-width pane, got %q", sz.w, sz.h, first)
 		}
 		if !strings.Contains(out, "metadata:") {

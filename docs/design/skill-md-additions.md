@@ -32,6 +32,11 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
 | Dependency graph cache per node (`depEntry`, `depsMsg`, `ensureDeps`, `reloadDeps`) | `internal/ui/browserdeps.go` |
 | Knowledge notes (`go:embed resource-notes.yaml`), `NoteFor`, `NoteTypes` | `internal/catalog/notes.go`, `internal/catalog/resource-notes.yaml` |
 | `DepGraph`, `DepEdge`, `Producers` / `Consumers` / `Inputs` / `Outputs`, `DepGraphFromProto`, `ParseDepDOT`, `ErrNeedsGRPC` | `internal/talos/deps.go` |
+| Related view model: `stemOf`, `roleOf`, `relFamily`, ID join (`splitLayered`), `buildRelTable`, `relPipeline`, `normalizeRelatedYAML` | `internal/ui/related.go` |
+| Related view pane (`paneRelated`, `p`): load, keys, mark + diff, layout, box and table rendering | `internal/ui/relatedview.go` |
+| `J` jump to the writer controller's inputs | `internal/ui/relatedjump.go` |
+| Category accents, header chips, per-kind suffix colours (`paintSpans`) | `internal/ui/browsercolor.go`, `internal/ui/styles.go` |
+| `DepGraph.Pipeline` (stages left to right) | `internal/talos/deps.go` |
 | Test fakes: in-memory `fakeSource`, `collectMsgs` / `feed` | `internal/ui/fakesource_test.go`, `internal/ui/countall_test.go` |
 
 ## Patterns
@@ -51,6 +56,20 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
   instance in `browser.singles` so Enter can open list + YAML without a second call.
 - Browser render tests need `newTestApp` + `browserApp(w, h, depth, nTypes)` from
   `browserkeys_test.go`; `renderHeader` needs `cfg`, so test `resourceLine` / `renderBrowser` instead.
+
+- **Related view.** `paneRelated` is a whole-width pane (`browserLayout` never shows it beside another pane).
+  `pane.rel` (`relatedView`) holds the cursor (`boxTyp` = selected pipeline box type, `row`/`col` = table cell),
+  the loaded lists (`relKey(ns,type)`) and the marks (row ID + column title). Stages and the table are rebuilt on every
+  render from `DepGraph.Pipeline` and `buildRelTable`; do not cache them in the pane. Layered network IDs are
+  `<layer>/<id>` (`network.LayeredID`): layers are `default`, `cmdline`, `platform`, `operator`, `configuration`
+  (a DHCP operator is layer `operator`, not `dhcp4`). Merged `*Spec` types in namespace `network` also list
+  `network-config`. Narrow terminals (< 120 columns) use one-line chips because bordered boxes need 3 rows each.
+- **Colour.** Every new colour is a `lipgloss.AdaptiveColor` in `styles.go` (`roleColor`, `categoryAccent`, `chip`).
+  The plain helpers (`breadcrumb`, `watchIndicator`, `resourceLine`) stay uncoloured because tests read them;
+  the header uses `browserHeaderStyled`. Tests that count escapes must not: compare against the grey run
+  (`\x1b[38;5;59m`) instead.
+- **Key table additions** (`browserKeyTable`) are checked against the bindings by a test: add `p`, `J` style
+  entries there when adding a pane-specific key.
 
 ## talosctl contract: new rows
 
@@ -114,6 +133,9 @@ Paste these into the t9s SKILL. They are kept here because SKILL.md is not track
   `nA->nB[style=…]` edges; controller to type = output, type to controller = input, `dotted` = weak input,
   edge label = resource ID). The CLI graph has no namespaces. Unparsable output gives `ErrNeedsGRPC`.
   Not yet checked against real output from a node.
+- **Notes source of truth** is the Talos skill (`agent-skills/talos/knowledge/resource-notes.yaml`). Never edit
+  `internal/catalog/resource-notes.yaml`: edit the skill copy, then run `hack/sync-resource-notes.sh`
+  (`--check` exits 1 when the copy is stale; `$TALOS_SKILL_DIR` overrides the skill path).
 - **Notes format** (`resource-notes.yaml`): a map keyed by display type (`LinkStatus`) with `what` (one sentence),
   optional `ubuntu`, optional `lookWhen` list. Source the text from the Talos source (`pkg/machinery/resources/`)
   and skill references; several upstream doc comments are copy-paste wrong, so check the Spec fields. A test

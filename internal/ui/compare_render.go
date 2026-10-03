@@ -93,3 +93,83 @@ func (app App) diffPaneLines(p pane, iw, inner int) []string {
 	}
 	return out
 }
+
+// sbsRow is one row of a side-by-side diff. A hunk header or file header spans
+// both columns (head set); otherwise left/right hold the two texts and lop/rop
+// say how each side changed ('-' removed, '+' added, ' ' same, 0 empty).
+type sbsRow struct {
+	head        string
+	headOp      byte
+	left, right string
+	lop, rop    byte
+}
+
+// sideBySide pairs the removed and added lines of each change run row by row.
+func sideBySide(lines []diffLine) []sbsRow {
+	var rows []sbsRow
+	var dels, adds []string
+	flush := func() {
+		for i := 0; i < max(len(dels), len(adds)); i++ {
+			r := sbsRow{}
+			if i < len(dels) {
+				r.left, r.lop = dels[i], '-'
+			}
+			if i < len(adds) {
+				r.right, r.rop = adds[i], '+'
+			}
+			rows = append(rows, r)
+		}
+		dels, adds = nil, nil
+	}
+	for _, l := range lines {
+		switch l.op {
+		case '-':
+			dels = append(dels, l.text)
+		case '+':
+			adds = append(adds, l.text)
+		case 'h', '@':
+			flush()
+			rows = append(rows, sbsRow{head: l.text, headOp: l.op})
+		default:
+			flush()
+			rows = append(rows, sbsRow{left: l.text, right: l.text, lop: ' ', rop: ' '})
+		}
+	}
+	flush()
+	return rows
+}
+
+// diffSideLines draws the diff with the first text on the left and the second
+// on the right.
+func (app App) diffSideLines(p pane, iw, inner int) []string {
+	rows := sideBySide(p.diff)
+	if len(rows) == 0 {
+		return messageLines(iw, inner, dimStyle, "(empty)")
+	}
+	half := max(1, (iw-3)/2)
+	cell := func(text string, op byte, w int) string {
+		text = fit(strings.ReplaceAll(text, "\t", "  "), w)
+		switch op {
+		case '-':
+			return diffDelStyle.Render(text)
+		case '+':
+			return diffAddStyle.Render(text)
+		}
+		return text
+	}
+	sep := dimStyle.Render(" │ ")
+	start := clamp(p.scroll, 0, max(0, len(rows)-inner))
+	var out []string
+	for i := start; i < len(rows) && i < start+inner; i++ {
+		r := rows[i]
+		switch {
+		case r.headOp == 'h':
+			out = append(out, diffHeadStyle.Render(fit(r.head, iw)))
+		case r.headOp == '@':
+			out = append(out, diffHunkStyle.Render(fit(r.head, iw)))
+		default:
+			out = append(out, cell(r.left, r.lop, half)+sep+cell(r.right, r.rop, iw-half-3))
+		}
+	}
+	return out
+}

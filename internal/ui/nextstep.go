@@ -37,7 +37,7 @@ func (app App) nextStep() string {
 	case paneTypes:
 		parts = app.typeNextStep(p)
 	case paneInstances:
-		parts = []string{"↵ view YAML", "d what is this", "c compare on all nodes"}
+		parts = []string{"↵ view YAML", "d what is this", "p related", "c compare on all nodes"}
 		if app.hasWatch() && p.cfgKind == "" {
 			parts = append(parts, "W watch")
 		}
@@ -54,6 +54,8 @@ func (app App) nextStep() string {
 		parts = []string{"↵ diff against the browser's node", "esc back"}
 	case paneDiff:
 		parts = []string{"↑↓ scroll", "esc back"}
+	case paneRelated:
+		parts = app.relatedNextStep(p)
 	}
 	return strings.Join(parts, " · ")
 }

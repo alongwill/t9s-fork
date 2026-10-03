@@ -1,3 +1,4 @@
+# GENERATED from the talos skill (knowledge/resource-notes.yaml). Edit it there, then rerun hack/sync-resource-notes.sh.
 # Knowledge notes for the t9s resource browser, keyed by display type
 # (ResourceDefinition.DisplayType, e.g. LinkStatus for LinkStatuses.net.talos.dev).
 #

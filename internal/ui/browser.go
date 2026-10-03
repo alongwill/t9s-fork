@@ -30,6 +30,7 @@ const (
 	paneAliases // ctrl+a palette
 	paneCompare // c: same resource on every node
 	paneDiff    // enter on a compare row: unified diff
+	paneRelated // p: pipeline and family of a type
 )
 
 // Count sentinels in browser.counts (missing key = not loaded yet).
@@ -54,6 +55,9 @@ type pane struct {
 	sub      descSubject          // paneDescribe
 	cmp      compareView          // paneCompare
 	diff     []diffLine           // paneDiff
+	legend   string               // paneDiff: replaces the compare legend in the title
+	side     bool                 // paneDiff: side by side instead of unified
+	rel      relatedView          // paneRelated
 	loading  bool
 	err      string
 }
@@ -347,7 +351,7 @@ func (app App) browserLayout() []paneBox {
 	if n == 0 {
 		return nil
 	}
-	if k := st[n-1].kind; k == paneAliases || k == paneCompare || k == paneDiff { // whole width
+	if k := st[n-1].kind; k == paneAliases || k == paneCompare || k == paneDiff || k == paneRelated { // whole width
 		return []paneBox{{n - 1, app.width}}
 	}
 	if app.browser.fullscreen && st[n-1].kind == paneYAML {
@@ -358,6 +362,12 @@ func (app App) browserLayout() []paneBox {
 		maxPanes = 3
 	}
 	first := max(0, n-maxPanes)
+	for i := n - 2; i >= 0; i-- { // a related view is whole-width: never show it beside another pane
+		if st[i].kind == paneRelated {
+			first = max(first, i+1)
+			break
+		}
+	}
 	for {
 		used := 0
 		for i := first; i < n-1; i++ {
@@ -505,32 +515,49 @@ func (app App) paneLen(p pane) int {
 	case paneCompare:
 		return len(p.cmp.rows)
 	case paneDiff:
+		if p.side {
+			return len(sideBySide(p.diff))
+		}
 		return len(p.diff)
 	}
 	return 0
+}
+
+// crumb is one segment of the breadcrumb; cat colours it (empty = plain).
+type crumb struct{ text, cat string }
+
+// crumbs lists the breadcrumb segments after the node.
+func (app App) crumbs() []crumb {
+	var out []crumb
+	for _, p := range app.browser.stack {
+		switch p.kind {
+		case paneTypes:
+			out = append(out, crumb{catalog.Label(p.category), p.category})
+		case paneInstances:
+			out = append(out, crumb{p.title, ""})
+		case paneYAML:
+			out = append(out, crumb{p.meta.ID, ""})
+		case paneDescribe:
+			out = append(out, crumb{"describe", ""})
+		case paneAliases:
+			out = append(out, crumb{"all types", ""})
+		case paneCompare:
+			out = append(out, crumb{"compare nodes", ""})
+		case paneDiff:
+			out = append(out, crumb{"diff", ""})
+		case paneRelated:
+			out = append(out, crumb{"related", ""})
+		}
+	}
+	return out
 }
 
 // breadcrumb renders `node: host (role) > Category > Type > id`.
 func (app App) breadcrumb() string {
 	b := app.browser
 	parts := []string{fmt.Sprintf("node: %s (%s)", b.node.Hostname, b.node.Role)}
-	for _, p := range b.stack {
-		switch p.kind {
-		case paneTypes:
-			parts = append(parts, catalog.Label(p.category))
-		case paneInstances:
-			parts = append(parts, p.title)
-		case paneYAML:
-			parts = append(parts, p.meta.ID)
-		case paneDescribe:
-			parts = append(parts, "describe")
-		case paneAliases:
-			parts = append(parts, "all types")
-		case paneCompare:
-			parts = append(parts, "compare nodes")
-		case paneDiff:
-			parts = append(parts, "diff")
-		}
+	for _, c := range app.crumbs() {
+		parts = append(parts, c.text)
 	}
 	return strings.Join(parts, " > ")
 }
