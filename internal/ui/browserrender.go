@@ -322,7 +322,11 @@ func (app App) instanceLines(p pane, iw, inner int, active bool) []string {
 		for _, c := range cols {
 			text += " " + fit(c.get(i), c.w)
 		}
-		out = append(out, rowStyle(i == p.cur, active, false).Render(fit(text, iw)))
+		st := rowStyle(i == p.cur, active, false)
+		if app.browser.flashing(items[i].ID) {
+			st = hitStyle
+		}
+		out = append(out, st.Render(fit(text, iw)))
 	}
 	return out
 }

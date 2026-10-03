@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
@@ -70,6 +71,8 @@ type browser struct {
 
 	fullscreen bool // YAML pane `f`
 	wrap       bool // YAML pane `w`
+
+	flash map[string]time.Time // instance ID → highlight until (live watch)
 
 	find     string // YAML `/` search
 	findHits []int  // logical line indexes that match
@@ -522,7 +525,7 @@ func (app App) breadcrumb() string {
 
 // browserIndicators is the right-aligned part of the header line.
 func (app App) browserIndicators() string {
-	return "src: " + app.sourceName()
+	return joinIndicators(app.watchIndicator(), "src: "+app.sourceName())
 }
 
 // browserHeaderLine is the breadcrumb with the indicators pushed to the right.

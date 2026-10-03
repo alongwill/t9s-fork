@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -180,10 +181,13 @@ func (app App) handleResourceInstances(msg resourceInstancesMsg) App {
 				return
 			}
 			p.err = ""
+			if app.watchBootstrapped && app.watchKey == watchKeyOf(msg.node, msg.typ) {
+				return // the live watch is the source of truth: this reply may be older
+			}
 			p.items = msg.items
 			p.cur = clamp(p.cur, 0, max(0, len(filterInstances(msg.items, p.filter))-1))
 		})
-	if msg.err == nil {
+	if msg.err == nil && !(app.watchBootstrapped && app.watchKey == watchKeyOf(msg.node, msg.typ)) {
 		// the fresh list also refreshes the type's count
 		app.browser = app.browser.setCount(msg.typ, len(msg.items))
 		if len(msg.items) == 1 {
@@ -208,7 +212,11 @@ func (app App) handleResourceYAML(msg resourceYAMLMsg) App {
 				return
 			}
 			p.err = ""
+			oldN := strings.Count(p.yaml, "\n")
 			p.yaml = msg.yaml
+			if strings.Count(msg.yaml, "\n") != oldN { // live reload changed the shape
+				p.scroll = clamp(p.scroll, 0, max(0, len(yamlVisual(msg.yaml, app.yamlInnerWidth(), app.browser.wrap))-app.paneInnerRows(paneYAML)))
+			}
 		})
 	if top, ok := app.browser.top(); ok && top.kind == paneYAML && top.meta.ID == msg.id && app.browser.find != "" {
 		app.browser.findHits = yamlFindHits(top.yaml, app.browser.find)

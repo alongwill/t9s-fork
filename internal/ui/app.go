@@ -208,15 +208,22 @@ type App struct {
 	healthCur int
 
 	// Resource browser (a on the node list)
-	browser      browser
-	resourceDefs map[string][]talos.ResourceDef // node IP → cached `get rd`
-	resSem       chan struct{}                  // caps concurrent per-type counts
-	source       talos.ResourceSource           // resource browser data source (nil = CLI)
-	sourceMode   string                         // --source: auto|grpc|cli
-	dialSource   func(ctx context.Context, cfgPath, contextName string) (talos.ResourceSource, error)
-	configDocs   map[string]cfgCacheEntry // node IP → machine config documents
-	cmd          cmdPrompt                // `:` command prompt
-	cmdHistory   []string                 // submitted commands, oldest first
+	browser           browser
+	resourceDefs      map[string][]talos.ResourceDef // node IP → cached `get rd`
+	resSem            chan struct{}                  // caps concurrent per-type counts
+	source            talos.ResourceSource           // resource browser data source (nil = CLI)
+	sourceMode        string                         // --source: auto|grpc|cli
+	watchCh           chan talos.WatchEvent          // live watch of the open type (gRPC only)
+	watchCancel       context.CancelFunc
+	watchSeq          uint64
+	watchKey          string // node|type the watch runs for
+	watchLive         bool   // the stream is up (false after an error / close)
+	watchBootstrapped bool   // initial contents received: later events flash
+	watchOff          bool   // user pressed W
+	dialSource        func(ctx context.Context, cfgPath, contextName string) (talos.ResourceSource, error)
+	configDocs        map[string]cfgCacheEntry // node IP → machine config documents
+	cmd               cmdPrompt                // `:` command prompt
+	cmdHistory        []string                 // submitted commands, oldest first
 
 	// Find in log/dmesg views (/ n N)
 	findInput  textinput.Model
@@ -313,10 +320,20 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return app, tea.Batch(cmd, doTick())
 
 	case tea.KeyMsg:
-		return app.handleKey(msg)
+		app, cmd := app.handleKey(msg)
+		app, wcmd := app.syncWatch()
+		return app, tea.Batch(cmd, wcmd)
+
+	case resourceWatchMsg:
+		return app.handleResourceWatch(msg)
+
+	case flashExpiredMsg:
+		return app, nil
 
 	case sourceReadyMsg:
-		return app.handleSourceReady(msg)
+		app, cmd := app.handleSourceReady(msg)
+		app, wcmd := app.syncWatch()
+		return app, tea.Batch(cmd, wcmd)
 
 	case resourceDefsMsg:
 		return app.handleResourceDefs(msg)
@@ -1301,6 +1318,7 @@ func (app *App) cleanup() {
 	app.stopDmesg()
 	app.stopUpgrade()
 	app.stopHealth()
+	app.stopWatch()
 	if app.source != nil {
 		_ = app.source.Close()
 	}

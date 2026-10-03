@@ -87,6 +87,11 @@ func browserActionsFor(kind paneKind) []keyAction {
 			as = append(as, keyAction{keys: []string{"d"}, desc: "Describe", visible: true, fn: (App).openDescribe})
 		}
 	}
+	if kind == paneInstances || kind == paneYAML || kind == paneDescribe {
+		as = append(as,
+			keyAction{keys: []string{"W"}, desc: "Live watch on/off (gRPC)", visible: kind != paneDescribe, fn: (App).toggleWatch},
+		)
+	}
 	if kind != paneAliases {
 		as = append(as,
 			keyAction{keys: []string{"ctrl+a"}, label: "^a", desc: "All types (aliases palette)", visible: true, fn: (App).openPalette},
@@ -509,6 +514,7 @@ func (app App) browserReload() (App, tea.Cmd) {
 		if p.cfgKind != "" {
 			return app.reloadConfig(nil)
 		}
+		app.stopWatch() // syncWatch restarts it, bootstrapping afresh
 		app.browser = b.withTop(func(p *pane) { p.loading, p.err = true, "" })
 		return app, app.loadInstances(p.def)
 
@@ -520,6 +526,7 @@ func (app App) browserReload() (App, tea.Cmd) {
 		if p.cfgKind != "" {
 			return app.reloadConfig(nil)
 		}
+		app.stopWatch()
 		app.browser = b.withTop(func(p *pane) { p.loading, p.err = true, "" })
 		return app, app.loadYAML(p.def, p.meta)
 	}

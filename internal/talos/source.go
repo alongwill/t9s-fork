@@ -22,9 +22,10 @@ type ResourceSource interface {
 	Definitions(ctx context.Context, node string) ([]ResourceDef, error)
 	List(ctx context.Context, node, ns, typ string) ([]ResourceMeta, error)
 	GetYAML(ctx context.Context, node, ns, typ, id string) (string, error)
-	// Watch streams changes of one type until ctx is cancelled or an error
-	// occurs. It sends the initial contents as created events followed by one
-	// bootstrapped event, and does not close out.
+	// Watch streams changes of one type until ctx is cancelled (returns nil) or
+	// the stream fails (returns the error; nothing is sent for it). It sends the
+	// initial contents as created events followed by one bootstrapped event and
+	// never closes out.
 	Watch(ctx context.Context, node, ns, typ string, out chan<- WatchEvent) error
 	Close() error
 }

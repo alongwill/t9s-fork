@@ -199,13 +199,13 @@ func (s *grpcSource) Watch(ctx context.Context, node, ns, typ string, out chan<-
 			if !ok {
 				continue
 			}
+			if we.Kind == "error" { // reported once, through the return value
+				return we.Err
+			}
 			select {
 			case out <- we:
 			case <-ctx.Done():
 				return nil
-			}
-			if we.Kind == "error" {
-				return we.Err
 			}
 		}
 	}
