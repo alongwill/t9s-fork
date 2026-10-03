@@ -215,7 +215,7 @@ Four PRs turn the browser into a place to learn Talos. Plan for A: `docs/design/
 | PR | Scope | State |
 |---|---|---|
 | A | Key feedback in every pane, next-step line, tips, knowledge notes (what / Ubuntu / look here), controller dependency graph, relationship-aware `d` describe | done |
-| B | Pipeline / related-resources view: follow a resource through Config → Spec → Status along the graph | planned |
+| B | Related view (`p`): pipeline boxes along the controller graph and an ID-joined family table with cell diff; `J` jump to the writer; notes sourced from the Talos skill; colour pass | done |
 | C | Symptom guides: start from "node has no network" or "disk missing" and walk the relevant resources | planned |
 | D | Network tree and an HTML stack diagram (links, addresses, routes, bonds, VLANs) | planned |
 
