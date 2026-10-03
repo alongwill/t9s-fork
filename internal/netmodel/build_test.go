@@ -288,7 +288,7 @@ func TestMissingAddressIsFlagged(t *testing.T) {
 
 func TestParseResAndHelpers(t *testing.T) {
 	r, err := ParseRes("node: x\nmetadata:\n  namespace: network\n  id: eth0\nspec:\n  mtu: 1500\n  up: true\n", "")
-	if err != nil || r.ID != "eth0" || r.Namespace != "network" || num(r.Spec, "mtu") != 1500 || !flag(r.Spec, "up") {
+	if err != nil || r.ID != "eth0" || r.Namespace != "network" || num(r.Spec, "mtu") != 1500 || !boolOf(r.Spec, "up") {
 		t.Fatalf("ParseRes = %+v, %v", r, err)
 	}
 	for in, want := range map[string]string{

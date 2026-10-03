@@ -363,6 +363,9 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case depsMsg:
 		return app.handleDeps(msg).afterDeps()
 
+	case netHTMLMsg:
+		return app.handleNetHTML(msg), nil
+
 	case netFetchMsg:
 		return app.handleNetFetch(msg), nil
 

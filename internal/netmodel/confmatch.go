@@ -147,7 +147,7 @@ func parseLegacy(m map[string]any, base ConfigRef) []docRef {
 func legacyIface(m map[string]any, ref ConfigRef, name string) docRef {
 	r := docRef{cfg: ref, link: name}
 	r.addrs = strList(m, "addresses")
-	r.dhcp4 = flag(m, "dhcp")
+	r.dhcp4 = boolOf(m, "dhcp")
 	if v := sub(m, "vip"); v != nil {
 		r.vip = str(v, "ip")
 	}

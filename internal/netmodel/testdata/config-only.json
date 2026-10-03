@@ -1,0 +1,135 @@
+{
+  "node": "10.0.0.7",
+  "links": [
+    {
+      "name": "lo",
+      "index": 1,
+      "kind": "",
+      "type": "loopback",
+      "physical": false,
+      "state": "unknown",
+      "operState": "unknown",
+      "mtu": 65536,
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "lo"
+      }
+    },
+    {
+      "name": "eth0",
+      "index": 2,
+      "kind": "",
+      "type": "ether",
+      "physical": true,
+      "state": "up",
+      "operState": "up",
+      "mtu": 1500,
+      "hwAddr": "52:54:00:ee:ff:01",
+      "driver": "e1000e",
+      "speedMbit": 1000,
+      "busPath": "0000:00:02.0",
+      "addresses": [
+        {
+          "prefix": "10.0.0.7/24",
+          "family": "inet4",
+          "scope": "global",
+          "source": "kernel",
+          "status": {
+            "type": "AddressStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "eth0/10.0.0.7/24"
+          }
+        }
+      ],
+      "routes": [
+        {
+          "dst": "default",
+          "gateway": "10.0.0.1",
+          "family": "inet4",
+          "table": "main",
+          "priority": 1024,
+          "protocol": "static",
+          "scope": "global",
+          "type": "unicast",
+          "outLink": "eth0",
+          "source": "kernel",
+          "default": true,
+          "status": {
+            "type": "RouteStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "inet4/10.0.0.1//1024"
+          }
+        }
+      ],
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "eth0"
+      }
+    }
+  ],
+  "roots": [
+    "eth0",
+    "lo"
+  ],
+  "children": {},
+  "also": {},
+  "defaultRoutes": [
+    {
+      "dst": "default",
+      "gateway": "10.0.0.1",
+      "family": "inet4",
+      "table": "main",
+      "priority": 1024,
+      "protocol": "static",
+      "scope": "global",
+      "type": "unicast",
+      "outLink": "eth0",
+      "source": "kernel",
+      "default": true,
+      "status": {
+        "type": "RouteStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "inet4/10.0.0.1//1024"
+      }
+    }
+  ],
+  "orphanRoutes": [
+    {
+      "dst": "10.9.0.0/16",
+      "gateway": "172.16.0.1",
+      "family": "inet4",
+      "table": "main",
+      "priority": 1024,
+      "protocol": "static",
+      "scope": "global",
+      "type": "unicast",
+      "outLink": "eth7",
+      "source": "kernel",
+      "status": {
+        "type": "RouteStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "inet4/172.16.0.1/10.9.0.0/16/1024"
+      }
+    }
+  ],
+  "warnings": [
+    {
+      "name": "eth9",
+      "message": "in LinkConfig, no such link on this node",
+      "config": {
+        "kind": "LinkConfig",
+        "name": "eth9",
+        "docIndex": 1
+      }
+    }
+  ],
+  "docs": [
+    {
+      "kind": "LinkConfig",
+      "name": "eth9",
+      "docIndex": 1
+    }
+  ]
+}

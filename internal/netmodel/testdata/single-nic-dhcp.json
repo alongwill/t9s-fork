@@ -1,0 +1,223 @@
+{
+  "node": "10.0.0.5",
+  "hostname": "cp-1",
+  "resolvers": [
+    "1.1.1.1",
+    "8.8.8.8"
+  ],
+  "links": [
+    {
+      "name": "lo",
+      "index": 1,
+      "kind": "",
+      "type": "loopback",
+      "physical": false,
+      "state": "unknown",
+      "operState": "unknown",
+      "mtu": 65536,
+      "addresses": [
+        {
+          "prefix": "127.0.0.1/8",
+          "family": "inet4",
+          "scope": "host",
+          "source": "default",
+          "layers": [
+            "default"
+          ],
+          "status": {
+            "type": "AddressStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "lo/127.0.0.1/8"
+          },
+          "spec": {
+            "type": "AddressSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "default/lo/127.0.0.1/8"
+          }
+        }
+      ],
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "lo"
+      }
+    },
+    {
+      "name": "eth0",
+      "index": 2,
+      "kind": "",
+      "type": "ether",
+      "physical": true,
+      "state": "up",
+      "operState": "up",
+      "mtu": 1500,
+      "hwAddr": "52:54:00:aa:bb:01",
+      "driver": "e1000e",
+      "speedMbit": 1000,
+      "busPath": "0000:00:02.0",
+      "addresses": [
+        {
+          "prefix": "10.0.0.5/24",
+          "family": "inet4",
+          "scope": "global",
+          "source": "dhcp4",
+          "layers": [
+            "operator"
+          ],
+          "config": {
+            "kind": "DHCPv4Config",
+            "name": "eth0",
+            "docIndex": 1
+          },
+          "status": {
+            "type": "AddressStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "eth0/10.0.0.5/24"
+          },
+          "spec": {
+            "type": "AddressSpecs.net.talos.dev",
+            "namespace": "network",
+            "id": "eth0/10.0.0.5/24"
+          }
+        }
+      ],
+      "routes": [
+        {
+          "dst": "default",
+          "gateway": "10.0.0.1",
+          "family": "inet4",
+          "table": "main",
+          "priority": 1024,
+          "protocol": "dhcp",
+          "scope": "global",
+          "type": "unicast",
+          "outLink": "eth0",
+          "source": "operator",
+          "default": true,
+          "status": {
+            "type": "RouteStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "inet4/10.0.0.1//1024"
+          },
+          "spec": {
+            "type": "RouteSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "operator/inet4/10.0.0.1//1024"
+          }
+        },
+        {
+          "dst": "10.0.0.0/24",
+          "src": "10.0.0.5",
+          "family": "inet4",
+          "table": "main",
+          "priority": 1024,
+          "protocol": "kernel",
+          "scope": "link",
+          "type": "unicast",
+          "outLink": "eth0",
+          "source": "kernel",
+          "status": {
+            "type": "RouteStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "inet4//10.0.0.0/24/1024"
+          }
+        }
+      ],
+      "operators": [
+        {
+          "kind": "dhcp4",
+          "layer": "configuration",
+          "config": {
+            "kind": "DHCPv4Config",
+            "name": "eth0",
+            "docIndex": 1
+          },
+          "spec": {
+            "type": "OperatorSpecs.net.talos.dev",
+            "namespace": "network",
+            "id": "dhcp4/eth0"
+          }
+        }
+      ],
+      "configs": [
+        {
+          "kind": "DHCPv4Config",
+          "name": "eth0",
+          "docIndex": 1
+        }
+      ],
+      "specs": [
+        {
+          "layer": "configuration",
+          "ref": {
+            "type": "LinkSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "configuration/eth0"
+          }
+        },
+        {
+          "layer": "merged",
+          "ref": {
+            "type": "LinkSpecs.net.talos.dev",
+            "namespace": "network",
+            "id": "eth0"
+          }
+        }
+      ],
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "eth0"
+      }
+    }
+  ],
+  "roots": [
+    "eth0",
+    "lo"
+  ],
+  "children": {},
+  "also": {},
+  "defaultRoutes": [
+    {
+      "dst": "default",
+      "gateway": "10.0.0.1",
+      "family": "inet4",
+      "table": "main",
+      "priority": 1024,
+      "protocol": "dhcp",
+      "scope": "global",
+      "type": "unicast",
+      "outLink": "eth0",
+      "source": "operator",
+      "default": true,
+      "status": {
+        "type": "RouteStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "inet4/10.0.0.1//1024"
+      },
+      "spec": {
+        "type": "RouteSpecs.net.talos.dev",
+        "namespace": "network-config",
+        "id": "operator/inet4/10.0.0.1//1024"
+      }
+    }
+  ],
+  "hiddenRoutes": 1,
+  "nodeAddresses": [
+    "10.0.0.5/24"
+  ],
+  "services": [
+    {
+      "kind": "node-address",
+      "name": "node address",
+      "detail": "10.0.0.5/24"
+    }
+  ],
+  "docs": [
+    {
+      "kind": "DHCPv4Config",
+      "name": "eth0",
+      "docIndex": 1
+    }
+  ]
+}

@@ -416,3 +416,43 @@ func TestNetHintsAndHelpListTheView(t *testing.T) {
 		t.Error("help does not mention the network view")
 	}
 }
+
+func TestNetOpenWritesAndOpensHTML(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	var opened string
+	old := openURL
+	defer func() { openURL = old }()
+	openURL = func(path string) error { opened = path; return nil }
+
+	app := netApp(t, "bond-vlan-vip", 120, 40)
+	app, cmd := app.handleKey(key("o"))
+	if cmd == nil {
+		t.Fatal("o returned no command")
+	}
+	msg := cmd().(netHTMLMsg)
+	if msg.err != nil || opened == "" || msg.path != opened || !strings.Contains(msg.path, "t9s-network-cp-1-") {
+		t.Fatalf("msg = %+v, opened %q", msg, opened)
+	}
+	app = app.handleNetHTML(msg)
+	if !strings.Contains(app.statusMsg, opened) {
+		t.Errorf("status = %q", app.statusMsg)
+	}
+
+	// opening fails: the path is still shown
+	openURL = func(string) error { return fmt.Errorf("xdg-open: not found") }
+	msg = cmd().(netHTMLMsg)
+	app = app.handleNetHTML(msg)
+	if !strings.Contains(app.statusMsg, "could not open") || !strings.Contains(app.statusMsg, msg.path) {
+		t.Errorf("status = %q", app.statusMsg)
+	}
+
+	// before the data is in, o says so
+	loading := newTestApp(120, 40)
+	loading.nodes = makeNodes(1)
+	loading.browser = browser{node: loading.nodes[0], stack: []pane{{kind: paneCategories}}}
+	loading = loading.syncBrowserState()
+	loading, _ = loading.openNetwork(true)
+	if a, c := loading.netOpenHTML(); c != nil || a.statusMsg == "" {
+		t.Error("o while loading should explain, not write")
+	}
+}

@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -672,8 +674,51 @@ func (app App) paneCategoryKey(p pane) string {
 	return ""
 }
 
-// netOpenHTML implements `o`. The diagram arrives with the HTML writer.
+// netHTMLMsg reports the diagram written by `o`.
+type netHTMLMsg struct {
+	path    string
+	err     error // writing failed
+	openErr error // writing worked, opening did not
+}
+
+// openURL opens a file in the browser; tests replace it.
+var openURL = func(path string) error {
+	opener := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		opener = "open"
+	}
+	return exec.Command(opener, path).Start()
+}
+
+// netOpenHTML implements `o`: write the diagram to $TMPDIR and open it.
 func (app App) netOpenHTML() (App, tea.Cmd) {
-	app.statusMsg = dimStyle.Render("the HTML diagram is not built yet")
-	return app, nil
+	p, ok := app.netPane()
+	if !ok {
+		return app, nil
+	}
+	if !p.net.ready {
+		app.statusMsg = dimStyle.Render("still loading the network: try again in a moment")
+		return app, nil
+	}
+	m := p.net.model
+	app.statusMsg = dimStyle.Render("writing the diagram…")
+	return app, func() tea.Msg {
+		path, err := netmodel.WriteHTML(m, "", time.Now())
+		if err != nil {
+			return netHTMLMsg{err: err}
+		}
+		return netHTMLMsg{path: path, openErr: openURL(path)}
+	}
+}
+
+func (app App) handleNetHTML(msg netHTMLMsg) App {
+	switch {
+	case msg.err != nil:
+		app.statusMsg = errStyle.Render("could not write the diagram: " + msg.err.Error())
+	case msg.openErr != nil:
+		app.statusMsg = warnStyle.Render("diagram written, could not open it (" + msg.openErr.Error() + "): " + msg.path)
+	default:
+		app.statusMsg = infoStyle.Render("diagram opened in the browser: " + msg.path)
+	}
+	return app
 }

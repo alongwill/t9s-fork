@@ -418,10 +418,10 @@ func linkDetail(l *Link, s map[string]any) []KV {
 		add("vlan protocol", str(v, "protocol"))
 	case "bridge":
 		b := sub(s, "bridgeMaster")
-		if flag(sub(b, "stp"), "enabled") {
+		if boolOf(sub(b, "stp"), "enabled") {
 			add("stp", "enabled")
 		}
-		if flag(sub(b, "vlan"), "filtering") {
+		if boolOf(sub(b, "vlan"), "filtering") {
 			add("vlan filtering", "on")
 		}
 	case "wireguard":

@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network of cp-1</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f6f8fa; --surface: #ffffff; --surface-alt: #eef1f4; --fg: #1f2328; --muted: #656d76;
+  --border: #d0d7de; --edge: #8c959f;
+  --phys: #1f2328; --bond: #8250df; --bridge: #bc4c00; --vlan: #0969da; --wireguard: #9a6700; --vxlan: #0a7f8a; --other: #6e7781;
+  --up: #1a7f37; --down: #cf222e; --warn: #9a6700; --warn-bg: #fff8c5;
+  --doc: #8250df; --doc-bg: #f3ecff;
+  --src-static: #8250df; --src-dhcp: #0969da; --src-vip: #0a7f8a; --src-platform: #bc4c00; --src-kernel: #6e7781;
+  --route: #57606a; --svc: #0a7f8a;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface-alt: #1c2128; --fg: #e6edf3; --muted: #8b949e;
+    --border: #30363d; --edge: #6e7681;
+    --phys: #e6edf3; --bond: #bc8cff; --bridge: #ffa657; --vlan: #58a6ff; --wireguard: #e3b341; --vxlan: #39c5cf; --other: #8b949e;
+    --up: #3fb950; --down: #ff7b72; --warn: #e3b341; --warn-bg: #3b2e00;
+    --doc: #bc8cff; --doc-bg: #271f3d;
+    --src-static: #bc8cff; --src-dhcp: #58a6ff; --src-vip: #39c5cf; --src-platform: #ffa657; --src-kernel: #8b949e;
+    --route: #adbac7; --svc: #39c5cf;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); }
+#app { display: flex; flex-direction: column; height: 100vh; }
+header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+header h1 { margin: 0; font-size: 16px; }
+header .sum { color: var(--muted); font-size: 13px; }
+header .sum b { color: var(--fg); font-weight: 600; }
+main { flex: 1; display: flex; min-height: 0; }
+#cy { flex: 1; min-width: 0; }
+aside { width: 360px; max-width: 42vw; overflow: auto; padding: 14px 16px; background: var(--surface); border-left: 1px solid var(--border); }
+aside h2 { margin: 0 0 4px; font-size: 15px; word-break: break-all; }
+aside h3 { margin: 16px 0 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+aside p { margin: 6px 0; }
+.kv { display: grid; grid-template-columns: 96px 1fr; gap: 2px 10px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; word-break: break-word; }
+code, .mono { font-family: var(--mono); font-size: 12px; }
+.chip { display: inline-block; padding: 0 7px; border-radius: 10px; font-size: 11px; font-weight: 600; color: var(--surface); background: var(--other); vertical-align: 1px; }
+.note { margin: 8px 0; padding: 8px 10px; border-radius: 6px; background: var(--surface-alt); font-size: 13px; }
+.note .ub { color: var(--muted); display: block; margin-top: 4px; }
+.warnbox { margin: 8px 0; padding: 8px 10px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); font-size: 13px; }
+.box { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+.box ol { margin: 6px 0 0 18px; padding: 0; }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 12px; margin-top: 6px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -2px; border: 2px solid var(--other); }
+.legend i.dash { border-style: dashed; }
+.empty { padding: 40px; color: var(--muted); }
+#cdn-error { display: none; margin: 16px; padding: 12px 14px; border-radius: 8px; background: var(--warn-bg); color: var(--warn); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Network of <span id="node"></span></h1>
+    <span class="sum" id="sum"></span>
+  </header>
+  <main>
+    <div id="cy"></div>
+    <aside id="panel"></aside>
+  </main>
+  <div id="cdn-error">The diagram needs Cytoscape.js from cdnjs.cloudflare.com and could not load it. Check the network connection and reload. The same facts are in the t9s network view.</div>
+</div>
+<script type="application/json" id="model">{"node":"10.0.0.5","hostname":"cp-1","resolvers":["1.1.1.1","8.8.8.8"],"links":[{"name":"lo","index":1,"kind":"","type":"loopback","physical":false,"state":"unknown","operState":"unknown","mtu":65536,"status":{"type":"LinkStatuses.net.talos.dev","namespace":"network","id":"lo"}},{"name":"eth0","index":2,"kind":"","type":"ether","physical":true,"state":"up","operState":"up","mtu":1500,"hwAddr":"52:54:00:aa:bb:01","driver":"e1000e","speedMbit":1000,"busPath":"0000:00:02.0","status":{"type":"LinkStatuses.net.talos.dev","namespace":"network","id":"eth0"}},{"name":"eth1","index":3,"kind":"","type":"ether","physical":true,"state":"up","operState":"up","mtu":1500,"hwAddr":"52:54:00:aa:bb:02","driver":"e1000e","speedMbit":1000,"busPath":"0000:00:03.0","status":{"type":"LinkStatuses.net.talos.dev","namespace":"network","id":"eth1"}},{"name":"bond0","index":4,"kind":"bond","type":"ether","physical":false,"state":"up","operState":"up","mtu":1500,"hwAddr":"52:54:00:aa:bb:01","lowers":["eth0","eth1"],"detail":[{"key":"bond mode","value":"802.3ad"},{"key":"hash policy","value":"layer3+4"},{"key":"lacp rate","value":"fast"},{"key":"miimon","value":"100"}],"addresses":[{"prefix":"10.0.0.5/24","family":"inet4","scope":"global","source":"static","layers":["configuration"],"config":{"kind":"BondConfig","name":"bond0","docIndex":1},"status":{"type":"AddressStatuses.net.talos.dev","namespace":"network","id":"bond0/10.0.0.5/24"},"spec":{"type":"AddressSpecs.net.talos.dev","namespace":"network","id":"bond0/10.0.0.5/24"}},{"prefix":"10.0.0.10/32","family":"inet4","scope":"global","source":"vip","layers":["operator"],"vip":true,"config":{"kind":"Layer2VIPConfig","name":"10.0.0.10","docIndex":4},"status":{"type":"AddressStatuses.net.talos.dev","namespace":"network","id":"bond0/10.0.0.10/32"},"spec":{"type":"AddressSpecs.net.talos.dev","namespace":"network-config","id":"operator/bond0/10.0.0.10/32"}}],"routes":[{"dst":"default","gateway":"10.0.0.1","family":"inet4","table":"main","priority":10,"protocol":"static","scope":"global","type":"unicast","outLink":"bond0","source":"static","default":true,"config":{"kind":"BondConfig","name":"bond0","docIndex":1},"status":{"type":"RouteStatuses.net.talos.dev","namespace":"network","id":"inet4/10.0.0.1//10"},"spec":{"type":"RouteSpecs.net.talos.dev","namespace":"network-config","id":"configuration/inet4/10.0.0.1//10"}}],"operators":[{"kind":"vip","vip":"10.0.0.10","layer":"configuration","config":{"kind":"Layer2VIPConfig","name":"10.0.0.10","docIndex":4},"spec":{"type":"OperatorSpecs.net.talos.dev","namespace":"network","id":"vip/bond0/10.0.0.10"}}],"configs":[{"kind":"BondConfig","name":"bond0","docIndex":1},{"kind":"Layer2VIPConfig","name":"10.0.0.10","docIndex":4}],"specs":[{"layer":"configuration","ref":{"type":"LinkSpecs.net.talos.dev","namespace":"network-config","id":"configuration/bond0"}},{"layer":"merged","ref":{"type":"LinkSpecs.net.talos.dev","namespace":"network","id":"bond0"}}],"status":{"type":"LinkStatuses.net.talos.dev","namespace":"network","id":"bond0"}},{"name":"bond0.100","index":5,"kind":"vlan","type":"ether","physical":false,"state":"up","operState":"up","mtu":1500,"hwAddr":"52:54:00:aa:bb:01","lowers":["bond0"],"detail":[{"key":"vlan id","value":"100"},{"key":"vlan protocol","value":"802.1q"}],"addresses":[{"prefix":"192.168.100.5/24","family":"inet4","scope":"global","source":"dhcp4","layers":["operator"],"config":{"kind":"DHCPv4Config","name":"bond0.100","docIndex":3},"status":{"type":"AddressStatuses.net.talos.dev","namespace":"network","id":"bond0.100/192.168.100.5/24"},"spec":{"type":"AddressSpecs.net.talos.dev","namespace":"network-config","id":"operator/bond0.100/192.168.100.5/24"}}],"routes":[{"dst":"192.168.100.0/24","src":"192.168.100.5","family":"inet4","table":"main","priority":1024,"protocol":"kernel","scope":"link","type":"unicast","outLink":"bond0.100","source":"kernel","status":{"type":"RouteStatuses.net.talos.dev","namespace":"network","id":"inet4//192.168.100.0/24/1024"}}],"operators":[{"kind":"dhcp4","layer":"configuration","config":{"kind":"DHCPv4Config","name":"bond0.100","docIndex":3},"spec":{"type":"OperatorSpecs.net.talos.dev","namespace":"network","id":"dhcp4/bond0.100"}}],"configs":[{"kind":"VLANConfig","name":"bond0.100","docIndex":2},{"kind":"DHCPv4Config","name":"bond0.100","docIndex":3}],"specs":[{"layer":"configuration","ref":{"type":"LinkSpecs.net.talos.dev","namespace":"network-config","id":"configuration/bond0.100"}}],"status":{"type":"LinkStatuses.net.talos.dev","namespace":"network","id":"bond0.100"}}],"roots":["eth0","eth1","lo"],"children":{"bond0":["bond0.100"],"eth0":["bond0"]},"also":{"eth1":["bond0"]},"defaultRoutes":[{"dst":"default","gateway":"10.0.0.1","family":"inet4","table":"main","priority":10,"protocol":"static","scope":"global","type":"unicast","outLink":"bond0","source":"static","default":true,"config":{"kind":"BondConfig","name":"bond0","docIndex":1},"status":{"type":"RouteStatuses.net.talos.dev","namespace":"network","id":"inet4/10.0.0.1//10"},"spec":{"type":"RouteSpecs.net.talos.dev","namespace":"network-config","id":"configuration/inet4/10.0.0.1//10"}}],"nodeAddresses":["10.0.0.5/24","192.168.100.5/24"],"warnings":[{"name":"eth9","message":"in LinkConfig, no such link on this node","config":{"kind":"LinkConfig","name":"eth9","docIndex":5}}],"services":[{"kind":"vip","name":"10.0.0.10/32","link":"bond0","config":{"kind":"Layer2VIPConfig","name":"10.0.0.10","docIndex":4},"ref":{"type":"AddressStatuses.net.talos.dev","namespace":"network","id":"bond0/10.0.0.10/32"}},{"kind":"node-address","name":"node address","detail":"10.0.0.5/24, 192.168.100.5/24"}],"docs":[{"kind":"BondConfig","name":"bond0","docIndex":1},{"kind":"VLANConfig","name":"bond0.100","docIndex":2},{"kind":"DHCPv4Config","name":"bond0.100","docIndex":3},{"kind":"Layer2VIPConfig","name":"10.0.0.10","docIndex":4},{"kind":"LinkConfig","name":"eth9","docIndex":5}],"notes":{"AddressSpec":{"what":"An address Talos wants assigned to a link, with its family, scope and flags.","ubuntu":"netplan `addresses:`, or `ip addr add`"},"AddressStatus":{"what":"An IP address that is currently assigned to a link, as the kernel reports it.","ubuntu":"`ip addr show`"},"BondConfig":{"what":"Bond several links into one for link aggregation / failover, choosing a bonding mode.","ubuntu":"`/etc/network/interfaces` bond-*, or netplan `bonds:` (kernel `bonding` module)."},"DHCPv4Config":{"what":"Tune the DHCPv4 client per link. v1.14 adds `ignoreRoutes`; `skipHostnameRequest` avoids DHCP hostname override.","ubuntu":"`dhclient`/networkd DHCP options, netplan `dhcp4: true` + `dhcp4-overrides:`."},"HostnameStatus":{"what":"The hostname and domain the node is actually using.","ubuntu":"`hostnamectl`, `/etc/hostname`"},"KubeSpanPeerStatus":{"what":"The WireGuard state of one KubeSpan peer, identified by its public key.","ubuntu":"`wg show`"},"Layer2VIPConfig":{"what":"Configure a shared/floating layer-2 VIP for HA control planes (gratuitous-ARP failover).","ubuntu":"keepalived / VRRP."},"LinkConfig":{"what":"Configure a physical/logical network link: up/down, MTU, and whether it participates in DHCP.","ubuntu":"`ip link set`, netplan `ethernets:` stanza, or `/etc/network/interfaces`."},"LinkSpec":{"what":"The desired state of a network link (name, up/down, MTU, bond, VLAN or bridge settings) that Talos applies to the kernel.","ubuntu":"netplan `ethernets:`/`bonds:`/`vlans:`, or `ip link set`"},"LinkStatus":{"what":"The live state of a network link as the kernel reports it: up/down, MTU, MAC address, driver.","ubuntu":"`ip -d link show`, `/sys/class/net/\u003cif\u003e/`, `ethtool \u003cif\u003e`"},"NodeAddress":{"what":"A computed list of the node's own addresses (default, current, accumulative or routed) that other controllers use to pick advertised and listen addresses."},"OperatorSpec":{"what":"A network operator (DHCPv4, DHCPv6, VIP or LLDP) that Talos runs on a link to obtain addresses or announce itself.","ubuntu":"`systemd-networkd` DHCP settings, `dhclient`"},"ResolverStatus":{"what":"The DNS servers Talos resolves names with.","ubuntu":"`resolvectl status`, `/etc/resolv.conf`"},"RouteSpec":{"what":"A route Talos wants installed in the kernel: destination, gateway, link and metric.","ubuntu":"netplan `routes:`, or `ip route add`"},"RouteStatus":{"what":"A route in the kernel routing table, as the kernel reports it.","ubuntu":"`ip route show`"},"VLANConfig":{"what":"Create 802.1Q VLAN sub-interfaces on a parent link.","ubuntu":"`ip link add link eth0 name eth0.10 type vlan`, netplan `vlans:`."}}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script>
+(function () {
+"use strict";
+var M = JSON.parse(document.getElementById("model").textContent);
+var $ = function (id) { return document.getElementById(id); };
+function el(tag, attrs, kids) {
+  var e = document.createElement(tag);
+  Object.keys(attrs || {}).forEach(function (k) {
+    if (k === "text") e.textContent = attrs[k]; else if (k === "class") e.className = attrs[k]; else e.setAttribute(k, attrs[k]);
+  });
+  (kids || []).forEach(function (c) { e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+  return e;
+}
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+// ---- header ----
+$("node").textContent = (M.hostname || M.node || "node");
+(function () {
+  var parts = [];
+  if (M.node) parts.push("node <b>" + esc(M.node) + "</b>");
+  if (M.resolvers && M.resolvers.length) parts.push("dns <b>" + esc(M.resolvers.join(", ")) + "</b>");
+  (M.defaultRoutes || []).forEach(function (r) { parts.push("default via <b>" + esc(r.gateway) + "</b> (" + esc(r.outLink) + ")"); });
+  parts.push((M.links || []).length + " links");
+  if ((M.warnings || []).length) parts.push("<b>" + M.warnings.length + " warning" + (M.warnings.length > 1 ? "s" : "") + "</b>");
+  $("sum").innerHTML = parts.join(" · ");
+})();
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); }
+
+// ---- graph model ----
+var links = M.links || [];
+var byName = {};
+links.forEach(function (l) { byName[l.name] = l; });
+
+var depthMemo = {};
+function depth(l, seen) {
+  if (depthMemo[l.name] !== undefined) return depthMemo[l.name];
+  seen = seen || {};
+  if (seen[l.name]) return 1;
+  seen[l.name] = true;
+  var d;
+  if (!l.lowers || !l.lowers.length) d = (l.physical || l.type === "loopback") ? 0 : 1;
+  else d = 1 + Math.max.apply(null, l.lowers.map(function (n) { return byName[n] ? depth(byName[n], seen) : 0; }));
+  depthMemo[l.name] = d;
+  return d;
+}
+var maxDepth = 0;
+links.forEach(function (l) { maxDepth = Math.max(maxDepth, depth(l)); });
+var ADDR_ROW = maxDepth + 1, ROUTE_ROW = maxDepth + 2;
+
+var nodes = [];   // {id, label, classes, row, want (desired x), w, data}
+var edges = [];   // {id, source, target, classes}
+var detail = {};  // node id -> {title, sub, rows:[[k,v]], refs:[], cfg:[], notes:[type], warn}
+var nodeById = {};
+function addNode(n) { nodes.push(n); nodeById[n.id] = n; return n; }
+function widthFor(label) {
+  var m = 0; label.split("\n").forEach(function (l) { m = Math.max(m, l.length); });
+  return Math.max(120, Math.round(m * 7.4 + 28));
+}
+function refStr(r) { return r ? r.type + " / " + r.id + "  (" + r.namespace + ")" : ""; }
+function disp(typ) {
+  var n = typ.split(".")[0];
+  if (/ies$/.test(n)) return n.slice(0, -3) + "y";
+  if (/ses$/.test(n)) return n.slice(0, -2);
+  return n.replace(/s$/, "");
+}
+function cfgStr(c) { return c.kind + (c.detail ? " " + c.detail : (c.name ? " / " + c.name : "")); }
+function srcClass(s) {
+  if (s === "static") return "src-static";
+  if (s === "dhcp4" || s === "dhcp6" || s === "operator") return "src-dhcp";
+  if (s === "vip") return "src-vip";
+  if (s === "platform" || s === "cmdline") return "src-platform";
+  return "src-kernel";
+}
+
+// links
+links.forEach(function (l) {
+  var info = l.operState || l.state;
+  if (l.speedMbit) info += "  " + l.speedMbit + "Mb/s";
+  var kindLine = l.physical ? (l.driver || "NIC") : (l.kind || l.type);
+  (l.detail || []).forEach(function (kv) { if (kv.key === "vlan id") kindLine += " " + kv.value; if (kv.key === "bond mode") kindLine += " " + kv.value; });
+  var label = l.name + "\n" + kindLine + (info ? "\n" + info : "");
+  var cls = ["link", l.physical ? "phys" : (l.kind || "other"), "st-" + l.state];
+  var n = addNode({ id: "link:" + l.name, label: label, classes: cls.join(" "), row: depth(l), link: l.name, lowers: l.lowers || [], w: widthFor(label) });
+  var rows = [["kind", l.physical ? "physical NIC" : (l.kind || l.type)]];
+  (l.detail || []).forEach(function (kv) { rows.push([kv.key, kv.value]); });
+  rows.push(["state", l.operState || l.state]);
+  if (l.mtu) rows.push(["mtu", String(l.mtu)]);
+  if (l.hwAddr) rows.push(["hwaddr", l.hwAddr]);
+  if (l.alias) rows.push(["alias", l.alias]);
+  if (l.speedMbit) rows.push(["speed", l.speedMbit + " Mb/s"]);
+  if (l.driver) rows.push(["driver", l.driver]);
+  if (l.busPath) rows.push(["bus", l.busPath]);
+  if (l.lowers && l.lowers.length) rows.push([(l.kind === "bond" || l.kind === "bridge" || l.kind === "vrf") ? "members" : "built on", l.lowers.join(", ")]);
+  (l.operators || []).forEach(function (o) { rows.push(["operator", o.kind + (o.vip ? " " + o.vip : "") + (o.layer ? "  (layer " + o.layer + ")" : "")]); });
+  var refs = [["status", l.status]];
+  (l.specs || []).forEach(function (s) { refs.push(["spec @ " + s.layer, s.ref]); });
+  detail[n.id] = { title: l.name, sub: (l.physical ? "physical NIC" : (l.kind || l.type)), rows: rows, refs: refs, cfg: l.configs || [], notes: ["LinkStatus", "LinkSpec"], layer: l.specs && l.specs.length ? "spec layers: " + l.specs.map(function (s) { return s.layer; }).join(", ") : "" };
+  (l.lowers || []).forEach(function (low) { edges.push({ id: "e:" + low + ">" + l.name, source: "link:" + low, target: n.id, classes: "built" }); });
+});
+
+// warnings: documents naming something the node does not have
+(M.warnings || []).forEach(function (w, i) {
+  var label = "⚠ " + w.name + "\nin " + w.config.kind;
+  var n = addNode({ id: "warn:" + i, label: label, classes: "warn", row: 0, w: widthFor(label) });
+  detail[n.id] = { title: w.name, sub: "config only", rows: [["problem", w.message], ["document", cfgStr(w.config)]], refs: [], cfg: [w.config], notes: [w.config.kind], warn: w.message };
+});
+
+// addresses
+links.forEach(function (l) {
+  (l.addresses || []).forEach(function (a) {
+    var label = a.prefix + "\n" + (a.missing ? "⚠ not on the link" : a.source + (a.vip ? " (VIP)" : ""));
+    var id = "addr:" + l.name + "|" + a.prefix;
+    var n = addNode({ id: id, label: label, classes: "addr " + srcClass(a.source) + (a.missing ? " warn" : ""), row: ADDR_ROW, link: l.name, w: widthFor(label) });
+    var rows = [["link", l.name], ["family", a.family || "?"], ["scope", a.scope || "?"], ["source", a.source + (a.vip ? " (virtual IP)" : "")]];
+    if (a.layers && a.layers.length) rows.push(["spec layers", a.layers.join(" > ")]);
+    var refs = [];
+    if (a.status) refs.push(["status", a.status]);
+    if (a.spec) refs.push(["spec", a.spec]);
+    detail[id] = { title: a.prefix, sub: "address on " + l.name, rows: rows, refs: refs, cfg: a.config ? [a.config] : [], notes: ["AddressStatus", "AddressSpec"], warn: a.missing ? "A spec asks for this address but the kernel does not have it." : "" };
+    edges.push({ id: "e:" + id, source: "link:" + l.name, target: id, classes: "attach" });
+  });
+});
+
+// routes
+function addRoute(r, owner, i) {
+  var label = (r.dst === "default" ? "default" : r.dst) + (r.gateway ? "\nvia " + r.gateway : "") + "\n" + r.source;
+  if (!owner) label += "\n⚠ no link " + r.outLink;
+  var id = "route:" + (owner || "none") + "|" + r.dst + "|" + (r.gateway || "") + "|" + i;
+  var n = addNode({ id: id, label: label, classes: "route" + (r.default ? " default" : "") + (owner ? "" : " warn"), row: ROUTE_ROW, link: owner, w: widthFor(label) });
+  var rows = [["destination", r.dst], ["gateway", r.gateway || ""], ["link", r.outLink || ""], ["src", r.src || ""], ["table", r.table], ["priority", r.priority ? String(r.priority) : ""], ["protocol", r.protocol || ""], ["scope", r.scope || ""], ["type", r.type], ["source", r.source]];
+  var refs = [];
+  if (r.status) refs.push(["status", r.status]);
+  if (r.spec) refs.push(["spec", r.spec]);
+  detail[id] = { title: r.dst, sub: "route", rows: rows.filter(function (x) { return x[1]; }), refs: refs, cfg: r.config ? [r.config] : [], notes: ["RouteStatus", "RouteSpec"], warn: owner ? "" : "This route leaves through " + r.outLink + ", but the node has no such link." };
+  if (owner) edges.push({ id: "e:" + id, source: "link:" + owner, target: id, classes: "attach" });
+}
+links.forEach(function (l) { (l.routes || []).forEach(function (r, i) { addRoute(r, l.name, i); }); });
+(M.orphanRoutes || []).forEach(function (r, i) { addRoute(r, "", i); });
+
+// services
+(M.services || []).forEach(function (s, i) {
+  var label = s.name + "\n" + (s.kind === "vip" ? "virtual IP" : s.detail || s.kind);
+  var id = "svc:" + s.kind + ":" + s.name;
+  var n = addNode({ id: id, label: label, classes: "svc", row: ROUTE_ROW, link: s.link || "", w: widthFor(label) });
+  var rows = [["kind", s.kind]];
+  if (s.link) rows.push(["link", s.link]);
+  if (s.detail) rows.push(["detail", s.detail]);
+  detail[id] = { title: s.name, sub: s.kind === "vip" ? "virtual IP" : s.kind, rows: rows, refs: s.ref ? [["status", s.ref]] : [], cfg: s.config ? [s.config] : [], notes: s.kind === "kubespan" ? ["KubeSpanPeerStatus"] : s.kind === "node-address" ? ["NodeAddress"] : ["OperatorSpec"] };
+  if (s.kind === "vip") {
+    var target = "addr:" + s.link + "|" + s.name;
+    if (nodeById[target]) { edges.push({ id: "e:" + id, source: target, target: id, classes: "attach" }); n.addr = target; }
+  } else if (s.link && nodeById["link:" + s.link]) {
+    edges.push({ id: "e:" + id, source: "link:" + s.link, target: id, classes: "attach" });
+  }
+});
+
+// config documents: a column on the left, dashed edges to what each created
+var docNodes = (M.docs || []).map(function (d, i) {
+  var label = d.kind + "\n" + (d.detail || d.name || "");
+  var n = addNode({ id: "doc:" + i, label: label.replace(/\n$/, ""), classes: "doc", row: -1, w: widthFor(label), docKey: d.docIndex + "|" + (d.detail || "") });
+  detail[n.id] = { title: d.kind, sub: "machine config document", rows: [["name", d.name || ""], ["where", d.detail || ""]].filter(function (x) { return x[1]; }), refs: [], cfg: [], notes: [d.kind] };
+  return n;
+});
+var docByKey = {};
+docNodes.forEach(function (n) { docByKey[n.docKey] = n; });
+function docEdge(c, target) {
+  var d = docByKey[c.docIndex + "|" + (c.detail || "")];
+  if (d && nodeById[target]) edges.push({ id: "d:" + d.id + ">" + target, source: d.id, target: target, classes: "made" });
+}
+links.forEach(function (l) { (l.configs || []).forEach(function (c) { docEdge(c, "link:" + l.name); }); });
+Object.keys(detail).forEach(function (id) {
+  var dt = detail[id];
+  if (/^(addr|route|svc):/.test(id)) (dt.cfg || []).forEach(function (c) { docEdge(c, id); });
+});
+(M.warnings || []).forEach(function (w, i) { docEdge(w.config, "warn:" + i); });
+// a document that made things: list them in its panel
+edges.forEach(function (e) {
+  if (e.classes !== "made") return;
+  var dt = detail[e.source]; var t = detail[e.target];
+  if (dt && t) { dt.made = dt.made || []; dt.made.push(t.title + " (" + t.sub + ")"); }
+});
+
+// ---- layered placement ----
+var GAP = 26, ROW_H = 150;
+var rowsMap = {};
+nodes.forEach(function (n) { if (n.row >= 0) (rowsMap[n.row] = rowsMap[n.row] || []).push(n); });
+var rowNums = Object.keys(rowsMap).map(Number).sort(function (a, b) { return a - b; });
+rowNums.forEach(function (r) {
+  var row = rowsMap[r];
+  row.forEach(function (n, i) {
+    var xs = [];
+    if (n.lowers && n.lowers.length) n.lowers.forEach(function (low) { var p = nodeById["link:" + low]; if (p && p.x !== undefined) xs.push(p.x); });
+    else if (n.addr && nodeById[n.addr] && nodeById[n.addr].x !== undefined) xs.push(nodeById[n.addr].x);
+    else if (n.link && nodeById["link:" + n.link] && nodeById["link:" + n.link].x !== undefined) xs.push(nodeById["link:" + n.link].x);
+    n.want = xs.length ? xs.reduce(function (a, b) { return a + b; }, 0) / xs.length : (r === 0 ? i * 200 : null);
+    n.order = i;
+  });
+  var lastWant = 0;
+  row.forEach(function (n) { if (n.want === null) n.want = lastWant + 200; lastWant = n.want; });
+  row.sort(function (a, b) { return a.want - b.want || a.order - b.order; });
+  var prev = null;
+  row.forEach(function (n) {
+    n.x = prev ? Math.max(n.want, prev.x + prev.w / 2 + n.w / 2 + GAP) : n.want;
+    prev = n;
+  });
+  var sw = 0, sx = 0;
+  row.forEach(function (n) { sw += n.want; sx += n.x; });
+  var shift = (sw - sx) / row.length;
+  if (r > 0) row.forEach(function (n) { n.x += shift; });
+  // pushing left may collide again: one more left-to-right pass
+  prev = null;
+  row.forEach(function (n) {
+    if (prev && n.x < prev.x + prev.w / 2 + n.w / 2 + GAP) n.x = prev.x + prev.w / 2 + n.w / 2 + GAP;
+    prev = n;
+  });
+});
+var maxRow = ROUTE_ROW;
+nodes.forEach(function (n) { if (n.row >= 0) n.y = (maxRow - n.row) * ROW_H; });
+var minX = Infinity;
+nodes.forEach(function (n) { if (n.x !== undefined) minX = Math.min(minX, n.x - n.w / 2); });
+if (!isFinite(minX)) minX = 0;
+var DOC_X = minX - 280;
+// documents sit at the mean height of what they made
+var edgesFrom = {};
+edges.forEach(function (e) { if (e.classes === "made") (edgesFrom[e.source] = edgesFrom[e.source] || []).push(e.target); });
+docNodes.forEach(function (d) {
+  var ys = (edgesFrom[d.id] || []).map(function (t) { return nodeById[t].y; });
+  d.want = ys.length ? ys.reduce(function (a, b) { return a + b; }, 0) / ys.length : maxRow * ROW_H + 40;
+  d.x = DOC_X;
+});
+docNodes.sort(function (a, b) { return a.want - b.want; });
+var py = -Infinity;
+docNodes.forEach(function (d) { d.y = Math.max(d.want, py + 74); py = d.y; });
+
+// band labels, in a gutter left of the documents
+var bands = [];
+function band(row, text) { bands.push({ id: "band:" + row, label: text, x: DOC_X - 190, y: (maxRow - row) * ROW_H }); }
+band(0, "PHYSICAL");
+for (var r = 1; r <= maxDepth; r++) band(r, maxDepth > 1 ? "LOGICAL LINKS (level " + r + ")" : "LOGICAL LINKS");
+band(ADDR_ROW, "ADDRESSES");
+band(ROUTE_ROW, "ROUTES · SERVICES");
+bands.push({ id: "band:docs", label: "MACHINE CONFIG\nDOCUMENTS", x: DOC_X, y: -ROW_H * 0.55 });
+
+// ---- panel ----
+var panel = $("panel");
+function fillRow(dl, k, v) { dl.appendChild(el("dt", { text: k })); dl.appendChild(el("dd", { text: v })); }
+function intro() {
+  panel.innerHTML = "";
+  panel.appendChild(el("h2", { text: "How to read this" }));
+  panel.appendChild(el("p", { class: "muted", text: "Click anything in the diagram. Layers run from the physical NIC at the bottom up to addresses, routes and services. Solid lines: built on, or attached to. Dashed lines: the machine config document that asked for it." }));
+  var box = el("div", { class: "box" });
+  box.appendChild(el("b", { text: "Config → spec → status" }));
+  var ol = el("ol");
+  ol.appendChild(el("li", { text: "Config: what you wrote in the machine config (LinkConfig, BondConfig, …)." }));
+  ol.appendChild(el("li", { text: "Spec: what Talos decided to apply, merged from config, DHCP, the platform and defaults (LinkSpec, AddressSpec, RouteSpec)." }));
+  ol.appendChild(el("li", { text: "Status: what the kernel actually has (LinkStatus, AddressStatus, RouteStatus). This diagram draws the status, and flags where config and status disagree." }));
+  box.appendChild(ol);
+  panel.appendChild(box);
+  var ub = el("div", { class: "box" });
+  ub.appendChild(el("b", { text: "On Ubuntu this lives in" }));
+  var ul = el("ul"); ul.style.margin = "6px 0 0 18px"; ul.style.padding = "0";
+  [["config", "/etc/netplan/*.yaml"], ["links", "ip link"], ["addresses", "ip addr"], ["routes", "ip route"]].forEach(function (x) {
+    var li = el("li"); li.appendChild(document.createTextNode(x[0] + ": ")); li.appendChild(el("code", { text: x[1] })); ul.appendChild(li);
+  });
+  ub.appendChild(ul); panel.appendChild(ub);
+  var lg = el("div", { class: "box" });
+  lg.appendChild(el("b", { text: "Legend" }));
+  var g = el("div", { class: "legend" });
+  [["--phys", "physical NIC"], ["--bond", "bond"], ["--bridge", "bridge"], ["--vlan", "VLAN"], ["--wireguard", "WireGuard / KubeSpan"], ["--src-static", "address from config (static)"], ["--src-dhcp", "address from DHCP"], ["--src-vip", "virtual IP"], ["--src-platform", "address from the platform"], ["--down", "link down"], ["--warn", "warning: config and node disagree"], ["--doc", "config document"]].forEach(function (x) {
+    var s = el("span"); var i = el("i"); i.style.borderColor = cssVar(x[0]); s.appendChild(i); s.appendChild(document.createTextNode(x[1])); g.appendChild(s);
+  });
+  var d1 = el("span"); d1.appendChild(el("i", { class: "dash" })); d1.appendChild(document.createTextNode("made by a document")); g.appendChild(d1);
+  lg.appendChild(g); panel.appendChild(lg);
+}
+function show(id) {
+  var d = detail[id];
+  if (!d) { intro(); return; }
+  panel.innerHTML = "";
+  panel.appendChild(el("h2", { text: d.title }));
+  panel.appendChild(el("div", { class: "muted", text: d.sub }));
+  if (d.warn) panel.appendChild(el("div", { class: "warnbox", text: "⚠ " + d.warn }));
+  if (d.rows && d.rows.length) {
+    var dl = el("dl", { class: "kv" }); d.rows.forEach(function (r) { fillRow(dl, r[0], r[1]); });
+    panel.appendChild(dl);
+  }
+  if (d.cfg && d.cfg.length) {
+    panel.appendChild(el("h3", { text: "Config document that made it" }));
+    var cl = el("dl", { class: "kv" });
+    d.cfg.forEach(function (c) { fillRow(cl, "document", cfgStr(c)); });
+    panel.appendChild(cl);
+  } else if (/^(link|addr|route):/.test(id)) {
+    panel.appendChild(el("h3", { text: "Config document that made it" }));
+    panel.appendChild(el("p", { class: "muted", text: "None. It comes from DHCP, the platform, a Talos default, or the kernel." }));
+  }
+  if (d.made && d.made.length) {
+    panel.appendChild(el("h3", { text: "It made" }));
+    var ul = el("ul"); ul.style.margin = "0 0 0 18px"; ul.style.padding = "0";
+    d.made.forEach(function (m) { ul.appendChild(el("li", { text: m })); });
+    panel.appendChild(ul);
+  }
+  if (d.refs && d.refs.length) {
+    panel.appendChild(el("h3", { text: "Talos resources (find them in t9s)" }));
+    var rl = el("dl", { class: "kv" });
+    d.refs.forEach(function (r) { fillRow(rl, r[0], refStr(r[1])); });
+    panel.appendChild(rl);
+    panel.appendChild(el("p", { class: "muted", text: "t9s: a → category → type → id, or press N for the network view." }));
+  }
+  (d.notes || []).forEach(function (k) {
+    var n = (M.notes || {})[k];
+    if (!n || !n.what) return;
+    var box = el("div", { class: "note" });
+    box.appendChild(el("b", { text: k }));
+    box.appendChild(el("div", { text: n.what }));
+    if (n.ubuntu) box.appendChild(el("span", { class: "ub", text: "On Ubuntu: " + n.ubuntu }));
+    panel.appendChild(box);
+  });
+}
+intro();
+
+// ---- cytoscape ----
+if (typeof cytoscape === "undefined") { $("cdn-error").style.display = "block"; return; }
+if (!links.length) { $("cy").appendChild(el("div", { class: "empty", text: "No links were found on this node." })); return; }
+
+var elements = [];
+nodes.forEach(function (n) { elements.push({ group: "nodes", data: { id: n.id, label: n.label, w: n.w, h: n.label.split("\n").length * 15 + 12 }, position: { x: n.x, y: n.y }, classes: n.classes }); });
+bands.forEach(function (b) { elements.push({ group: "nodes", data: { id: b.id, label: b.label, h: b.label.split("\n").length * 15 + 6 }, position: { x: b.x, y: b.y }, classes: "band", selectable: false, grabbable: false }); });
+edges.forEach(function (e) { elements.push({ group: "edges", data: { id: e.id, source: e.source, target: e.target }, classes: e.classes }); });
+
+function styles() {
+  var C = { fg: cssVar("--fg"), muted: cssVar("--muted"), surface: cssVar("--surface"), edge: cssVar("--edge") };
+  function nodeStyle(sel, color, extra) { return { selector: sel, style: Object.assign({ "border-color": color, color: C.fg }, extra || {}) }; }
+  return [
+    { selector: "node", style: { label: "data(label)", "text-wrap": "wrap", "text-valign": "center", "text-halign": "center", "font-size": 12, "font-family": cssVar("--font"), color: C.fg,
+      shape: "round-rectangle", width: "data(w)", height: "data(h)", padding: "9px", "background-color": C.surface, "border-width": 2, "border-color": cssVar("--other") } },
+    nodeStyle("node.phys", cssVar("--phys"), { "border-width": 3, "font-weight": "bold" }),
+    nodeStyle("node.bond", cssVar("--bond")), nodeStyle("node.bridge", cssVar("--bridge")), nodeStyle("node.vlan", cssVar("--vlan")),
+    nodeStyle("node.wireguard", cssVar("--wireguard")), nodeStyle("node.vxlan", cssVar("--vxlan")), nodeStyle("node.link.other", cssVar("--other")),
+    { selector: "node.link.st-down", style: { "border-color": cssVar("--down"), "border-width": 3 } },
+    { selector: "node.addr", style: { shape: "round-rectangle", "font-size": 11 } },
+    nodeStyle("node.src-static", cssVar("--src-static")), nodeStyle("node.src-dhcp", cssVar("--src-dhcp")), nodeStyle("node.src-vip", cssVar("--src-vip")),
+    nodeStyle("node.src-platform", cssVar("--src-platform")), nodeStyle("node.src-kernel", cssVar("--src-kernel")),
+    { selector: "node.route", style: { shape: "cut-rectangle", "border-color": cssVar("--route"), "font-size": 11 } },
+    { selector: "node.route.default", style: { "border-width": 3 } },
+    { selector: "node.svc", style: { shape: "barrel", "border-color": cssVar("--svc"), "font-size": 11 } },
+    { selector: "node.doc", style: { shape: "rectangle", "border-color": cssVar("--doc"), "background-color": cssVar("--doc-bg"), "font-size": 11 } },
+    { selector: "node.warn", style: { "border-color": cssVar("--warn"), "border-style": "dashed", "background-color": cssVar("--warn-bg"), "border-width": 3 } },
+    { selector: "node.band", style: { shape: "rectangle", "background-opacity": 0, "border-width": 0, width: 170, height: "data(h)", color: C.muted, "font-size": 11, "font-weight": "bold", "text-halign": "left", "text-valign": "center", "text-wrap": "wrap", events: "no" } },
+    { selector: "edge", style: { width: 1.6, "line-color": C.edge, "curve-style": "bezier", "target-arrow-shape": "none", opacity: 0.85 } },
+    { selector: "edge.built", style: { width: 2.4, "target-arrow-shape": "triangle", "target-arrow-color": C.edge } },
+    { selector: "edge.made", style: { "line-style": "dashed", "line-color": cssVar("--doc"), width: 1.4, "target-arrow-shape": "triangle", "target-arrow-color": cssVar("--doc"), opacity: 0.7 } },
+    { selector: ".faded", style: { opacity: 0.18 } },
+    { selector: "node:selected", style: { "overlay-color": cssVar("--vlan"), "overlay-opacity": 0.15, "overlay-padding": 6 } }
+  ];
+}
+
+var cy = cytoscape({ container: $("cy"), elements: elements, layout: { name: "preset" }, style: styles(), minZoom: 0.15, maxZoom: 2.5 });
+cy.fit(undefined, 40);
+cy.on("tap", "node", function (ev) {
+  var n = ev.target;
+  if (n.hasClass("band")) return;
+  cy.elements().addClass("faded");
+  n.closedNeighborhood().removeClass("faded");
+  show(n.id());
+});
+cy.on("tap", function (ev) { if (ev.target === cy) { cy.elements().removeClass("faded"); intro(); } });
+window.addEventListener("resize", function () { cy.resize(); });
+if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { cy.style(styles()); intro(); });
+})();
+</script>
+</body>
+</html>

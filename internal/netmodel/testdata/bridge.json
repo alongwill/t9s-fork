@@ -1,0 +1,155 @@
+{
+  "node": "10.0.0.6",
+  "hostname": "w-1",
+  "links": [
+    {
+      "name": "lo",
+      "index": 1,
+      "kind": "",
+      "type": "loopback",
+      "physical": false,
+      "state": "unknown",
+      "operState": "unknown",
+      "mtu": 65536,
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "lo"
+      }
+    },
+    {
+      "name": "eth0",
+      "index": 2,
+      "kind": "",
+      "type": "ether",
+      "physical": true,
+      "state": "up",
+      "operState": "up",
+      "mtu": 1500,
+      "hwAddr": "52:54:00:cc:dd:01",
+      "driver": "e1000e",
+      "speedMbit": 10000,
+      "busPath": "0000:00:02.0",
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "eth0"
+      }
+    },
+    {
+      "name": "br0",
+      "index": 3,
+      "kind": "bridge",
+      "type": "ether",
+      "physical": false,
+      "state": "up",
+      "operState": "up",
+      "mtu": 1500,
+      "hwAddr": "52:54:00:cc:dd:01",
+      "lowers": [
+        "eth0"
+      ],
+      "detail": [
+        {
+          "key": "stp",
+          "value": "enabled"
+        }
+      ],
+      "addresses": [
+        {
+          "prefix": "10.1.0.6/24",
+          "family": "inet4",
+          "scope": "global",
+          "source": "static",
+          "layers": [
+            "configuration"
+          ],
+          "config": {
+            "kind": "BridgeConfig",
+            "name": "br0",
+            "docIndex": 1
+          },
+          "status": {
+            "type": "AddressStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "br0/10.1.0.6/24"
+          },
+          "spec": {
+            "type": "AddressSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "configuration/br0/10.1.0.6/24"
+          }
+        }
+      ],
+      "routes": [
+        {
+          "dst": "default",
+          "gateway": "10.1.0.1",
+          "family": "inet4",
+          "table": "main",
+          "priority": 1024,
+          "protocol": "static",
+          "scope": "global",
+          "type": "unicast",
+          "outLink": "br0",
+          "source": "kernel",
+          "default": true,
+          "status": {
+            "type": "RouteStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "inet4/10.1.0.1//1024"
+          }
+        }
+      ],
+      "configs": [
+        {
+          "kind": "BridgeConfig",
+          "name": "br0",
+          "docIndex": 1
+        }
+      ],
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "br0"
+      }
+    }
+  ],
+  "roots": [
+    "eth0",
+    "lo"
+  ],
+  "children": {
+    "eth0": [
+      "br0"
+    ]
+  },
+  "also": {},
+  "defaultRoutes": [
+    {
+      "dst": "default",
+      "gateway": "10.1.0.1",
+      "family": "inet4",
+      "table": "main",
+      "priority": 1024,
+      "protocol": "static",
+      "scope": "global",
+      "type": "unicast",
+      "outLink": "br0",
+      "source": "kernel",
+      "default": true,
+      "status": {
+        "type": "RouteStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "inet4/10.1.0.1//1024"
+      }
+    }
+  ],
+  "docs": [
+    {
+      "kind": "BridgeConfig",
+      "name": "br0",
+      "docIndex": 1
+    }
+  ]
+}

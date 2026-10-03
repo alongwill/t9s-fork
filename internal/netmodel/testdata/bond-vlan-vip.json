@@ -1,0 +1,453 @@
+{
+  "node": "10.0.0.5",
+  "hostname": "cp-1",
+  "resolvers": [
+    "1.1.1.1",
+    "8.8.8.8"
+  ],
+  "links": [
+    {
+      "name": "lo",
+      "index": 1,
+      "kind": "",
+      "type": "loopback",
+      "physical": false,
+      "state": "unknown",
+      "operState": "unknown",
+      "mtu": 65536,
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "lo"
+      }
+    },
+    {
+      "name": "eth0",
+      "index": 2,
+      "kind": "",
+      "type": "ether",
+      "physical": true,
+      "state": "up",
+      "operState": "up",
+      "mtu": 1500,
+      "hwAddr": "52:54:00:aa:bb:01",
+      "driver": "e1000e",
+      "speedMbit": 1000,
+      "busPath": "0000:00:02.0",
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "eth0"
+      }
+    },
+    {
+      "name": "eth1",
+      "index": 3,
+      "kind": "",
+      "type": "ether",
+      "physical": true,
+      "state": "up",
+      "operState": "up",
+      "mtu": 1500,
+      "hwAddr": "52:54:00:aa:bb:02",
+      "driver": "e1000e",
+      "speedMbit": 1000,
+      "busPath": "0000:00:03.0",
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "eth1"
+      }
+    },
+    {
+      "name": "bond0",
+      "index": 4,
+      "kind": "bond",
+      "type": "ether",
+      "physical": false,
+      "state": "up",
+      "operState": "up",
+      "mtu": 1500,
+      "hwAddr": "52:54:00:aa:bb:01",
+      "lowers": [
+        "eth0",
+        "eth1"
+      ],
+      "detail": [
+        {
+          "key": "bond mode",
+          "value": "802.3ad"
+        },
+        {
+          "key": "hash policy",
+          "value": "layer3+4"
+        },
+        {
+          "key": "lacp rate",
+          "value": "fast"
+        },
+        {
+          "key": "miimon",
+          "value": "100"
+        }
+      ],
+      "addresses": [
+        {
+          "prefix": "10.0.0.5/24",
+          "family": "inet4",
+          "scope": "global",
+          "source": "static",
+          "layers": [
+            "configuration"
+          ],
+          "config": {
+            "kind": "BondConfig",
+            "name": "bond0",
+            "docIndex": 1
+          },
+          "status": {
+            "type": "AddressStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "bond0/10.0.0.5/24"
+          },
+          "spec": {
+            "type": "AddressSpecs.net.talos.dev",
+            "namespace": "network",
+            "id": "bond0/10.0.0.5/24"
+          }
+        },
+        {
+          "prefix": "10.0.0.10/32",
+          "family": "inet4",
+          "scope": "global",
+          "source": "vip",
+          "layers": [
+            "operator"
+          ],
+          "vip": true,
+          "config": {
+            "kind": "Layer2VIPConfig",
+            "name": "10.0.0.10",
+            "docIndex": 4
+          },
+          "status": {
+            "type": "AddressStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "bond0/10.0.0.10/32"
+          },
+          "spec": {
+            "type": "AddressSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "operator/bond0/10.0.0.10/32"
+          }
+        }
+      ],
+      "routes": [
+        {
+          "dst": "default",
+          "gateway": "10.0.0.1",
+          "family": "inet4",
+          "table": "main",
+          "priority": 10,
+          "protocol": "static",
+          "scope": "global",
+          "type": "unicast",
+          "outLink": "bond0",
+          "source": "static",
+          "default": true,
+          "config": {
+            "kind": "BondConfig",
+            "name": "bond0",
+            "docIndex": 1
+          },
+          "status": {
+            "type": "RouteStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "inet4/10.0.0.1//10"
+          },
+          "spec": {
+            "type": "RouteSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "configuration/inet4/10.0.0.1//10"
+          }
+        }
+      ],
+      "operators": [
+        {
+          "kind": "vip",
+          "vip": "10.0.0.10",
+          "layer": "configuration",
+          "config": {
+            "kind": "Layer2VIPConfig",
+            "name": "10.0.0.10",
+            "docIndex": 4
+          },
+          "spec": {
+            "type": "OperatorSpecs.net.talos.dev",
+            "namespace": "network",
+            "id": "vip/bond0/10.0.0.10"
+          }
+        }
+      ],
+      "configs": [
+        {
+          "kind": "BondConfig",
+          "name": "bond0",
+          "docIndex": 1
+        },
+        {
+          "kind": "Layer2VIPConfig",
+          "name": "10.0.0.10",
+          "docIndex": 4
+        }
+      ],
+      "specs": [
+        {
+          "layer": "configuration",
+          "ref": {
+            "type": "LinkSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "configuration/bond0"
+          }
+        },
+        {
+          "layer": "merged",
+          "ref": {
+            "type": "LinkSpecs.net.talos.dev",
+            "namespace": "network",
+            "id": "bond0"
+          }
+        }
+      ],
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "bond0"
+      }
+    },
+    {
+      "name": "bond0.100",
+      "index": 5,
+      "kind": "vlan",
+      "type": "ether",
+      "physical": false,
+      "state": "up",
+      "operState": "up",
+      "mtu": 1500,
+      "hwAddr": "52:54:00:aa:bb:01",
+      "lowers": [
+        "bond0"
+      ],
+      "detail": [
+        {
+          "key": "vlan id",
+          "value": "100"
+        },
+        {
+          "key": "vlan protocol",
+          "value": "802.1q"
+        }
+      ],
+      "addresses": [
+        {
+          "prefix": "192.168.100.5/24",
+          "family": "inet4",
+          "scope": "global",
+          "source": "dhcp4",
+          "layers": [
+            "operator"
+          ],
+          "config": {
+            "kind": "DHCPv4Config",
+            "name": "bond0.100",
+            "docIndex": 3
+          },
+          "status": {
+            "type": "AddressStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "bond0.100/192.168.100.5/24"
+          },
+          "spec": {
+            "type": "AddressSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "operator/bond0.100/192.168.100.5/24"
+          }
+        }
+      ],
+      "routes": [
+        {
+          "dst": "192.168.100.0/24",
+          "src": "192.168.100.5",
+          "family": "inet4",
+          "table": "main",
+          "priority": 1024,
+          "protocol": "kernel",
+          "scope": "link",
+          "type": "unicast",
+          "outLink": "bond0.100",
+          "source": "kernel",
+          "status": {
+            "type": "RouteStatuses.net.talos.dev",
+            "namespace": "network",
+            "id": "inet4//192.168.100.0/24/1024"
+          }
+        }
+      ],
+      "operators": [
+        {
+          "kind": "dhcp4",
+          "layer": "configuration",
+          "config": {
+            "kind": "DHCPv4Config",
+            "name": "bond0.100",
+            "docIndex": 3
+          },
+          "spec": {
+            "type": "OperatorSpecs.net.talos.dev",
+            "namespace": "network",
+            "id": "dhcp4/bond0.100"
+          }
+        }
+      ],
+      "configs": [
+        {
+          "kind": "VLANConfig",
+          "name": "bond0.100",
+          "docIndex": 2
+        },
+        {
+          "kind": "DHCPv4Config",
+          "name": "bond0.100",
+          "docIndex": 3
+        }
+      ],
+      "specs": [
+        {
+          "layer": "configuration",
+          "ref": {
+            "type": "LinkSpecs.net.talos.dev",
+            "namespace": "network-config",
+            "id": "configuration/bond0.100"
+          }
+        }
+      ],
+      "status": {
+        "type": "LinkStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "bond0.100"
+      }
+    }
+  ],
+  "roots": [
+    "eth0",
+    "eth1",
+    "lo"
+  ],
+  "children": {
+    "bond0": [
+      "bond0.100"
+    ],
+    "eth0": [
+      "bond0"
+    ]
+  },
+  "also": {
+    "eth1": [
+      "bond0"
+    ]
+  },
+  "defaultRoutes": [
+    {
+      "dst": "default",
+      "gateway": "10.0.0.1",
+      "family": "inet4",
+      "table": "main",
+      "priority": 10,
+      "protocol": "static",
+      "scope": "global",
+      "type": "unicast",
+      "outLink": "bond0",
+      "source": "static",
+      "default": true,
+      "config": {
+        "kind": "BondConfig",
+        "name": "bond0",
+        "docIndex": 1
+      },
+      "status": {
+        "type": "RouteStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "inet4/10.0.0.1//10"
+      },
+      "spec": {
+        "type": "RouteSpecs.net.talos.dev",
+        "namespace": "network-config",
+        "id": "configuration/inet4/10.0.0.1//10"
+      }
+    }
+  ],
+  "nodeAddresses": [
+    "10.0.0.5/24",
+    "192.168.100.5/24"
+  ],
+  "warnings": [
+    {
+      "name": "eth9",
+      "message": "in LinkConfig, no such link on this node",
+      "config": {
+        "kind": "LinkConfig",
+        "name": "eth9",
+        "docIndex": 5
+      }
+    }
+  ],
+  "services": [
+    {
+      "kind": "vip",
+      "name": "10.0.0.10/32",
+      "link": "bond0",
+      "config": {
+        "kind": "Layer2VIPConfig",
+        "name": "10.0.0.10",
+        "docIndex": 4
+      },
+      "ref": {
+        "type": "AddressStatuses.net.talos.dev",
+        "namespace": "network",
+        "id": "bond0/10.0.0.10/32"
+      }
+    },
+    {
+      "kind": "node-address",
+      "name": "node address",
+      "detail": "10.0.0.5/24, 192.168.100.5/24"
+    }
+  ],
+  "docs": [
+    {
+      "kind": "BondConfig",
+      "name": "bond0",
+      "docIndex": 1
+    },
+    {
+      "kind": "VLANConfig",
+      "name": "bond0.100",
+      "docIndex": 2
+    },
+    {
+      "kind": "DHCPv4Config",
+      "name": "bond0.100",
+      "docIndex": 3
+    },
+    {
+      "kind": "Layer2VIPConfig",
+      "name": "10.0.0.10",
+      "docIndex": 4
+    },
+    {
+      "kind": "LinkConfig",
+      "name": "eth9",
+      "docIndex": 5
+    }
+  ]
+}

@@ -100,7 +100,7 @@ func num(m map[string]any, key string) int {
 	return 0
 }
 
-func flag(m map[string]any, key string) bool {
+func boolOf(m map[string]any, key string) bool {
 	switch v := m[key].(type) {
 	case bool:
 		return v
