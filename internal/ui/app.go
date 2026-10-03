@@ -226,6 +226,7 @@ type App struct {
 	configDocs        map[string]cfgCacheEntry // node IP → machine config documents
 	cmd               cmdPrompt                // `:` command prompt
 	cmdHistory        []string                 // submitted commands, oldest first
+	deps              map[string]depEntry      // node IP → controller dependency graph
 	tipIdx            int                      // next tip to show; set to -1 in New
 	tipMsg            string                   // the status text of the last tip shown
 	tipsOff           bool                     // :tips off
@@ -346,6 +347,9 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case resourceDefsMsg:
 		return app.handleResourceDefs(msg)
+
+	case depsMsg:
+		return app.handleDeps(msg), nil
 
 	case resourceCountMsg:
 		return app.handleResourceCount(msg), nil

@@ -67,6 +67,7 @@ func browserActionsFor(kind paneKind) []keyAction {
 		)
 	case paneDescribe:
 		as = append(as,
+			keyAction{keys: []string{"enter"}, label: "↵", desc: "Jump to the selected type", visible: true, fn: (App).describeJump},
 			keyAction{keys: []string{"y"}, desc: "YAML", visible: true, fn: (App).describeToYAML},
 			keyAction{keys: []string{"d"}, desc: "Back (toggle describe)", visible: true, fn: func(app App) (App, tea.Cmd) { return app.popPane(), nil }},
 		)
@@ -261,6 +262,11 @@ func (app App) browserMove(delta int) App {
 	p, ok := app.browser.top()
 	if !ok {
 		return app
+	}
+	if p.kind == paneDescribe && (delta == 1 || delta == -1) {
+		if a, ok := app.describeMove(delta); ok {
+			return a
+		}
 	}
 	n := app.paneLen(p)
 	rows := app.paneInnerRows(p.kind)
@@ -646,7 +652,9 @@ func (app App) browserReload() (App, tea.Cmd) {
 		app.browser = b.withTop(func(p *pane) { p.loading, p.err = true, "" })
 		return app, app.loadInstances(p.def)
 
-	case paneDescribe, paneDiff:
+	case paneDescribe:
+		return app.reloadDeps()
+	case paneDiff:
 		return app, nil
 	case paneCompare:
 		return app.reloadCompare()

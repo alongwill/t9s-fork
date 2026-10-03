@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/florianspk/t9s/internal/catalog"
 )
 
 func checkBudget(t *testing.T, app App, w int) string {
@@ -88,8 +90,8 @@ func TestRenderDescribePane(t *testing.T) {
 func TestRenderDescribeLongTextWrapsAndScrolls(t *testing.T) {
 	app := cfgApp(80, 24, 3)
 	// CPUScalingConfig-style long descriptions: wrap inside the pane, scroll to the end
-	lines := []descLine{{"Kind", "X"}, {"", strings.Repeat("word ", 400)}}
-	app.browser = app.browser.push(pane{kind: paneDescribe, title: "Describe X", desc: lines})
+	sub := descSubject{cfg: true, ck: catalog.ConfigKind{Kind: "X", Group: "network", Desc: strings.Repeat("word ", 400)}}
+	app.browser = app.browser.push(pane{kind: paneDescribe, title: "Describe X", sub: sub})
 	app = app.syncBrowserState()
 	out := checkBudget(t, app, 80)
 	app = press(t, app, "G")

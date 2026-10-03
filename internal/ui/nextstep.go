@@ -45,6 +45,9 @@ func (app App) nextStep() string {
 		parts = []string{"/ find", "w wrap", "f full screen", "c compare", "esc back"}
 	case paneDescribe:
 		parts = []string{"↑↓ scroll", "y YAML", "d back"}
+		if len(selectableLines(describeVisual(app.describeRows(p), app.yamlInnerWidth()))) > 0 {
+			parts = []string{"↑↓ select a type", "↵ jump to it", "y YAML", "d back"}
+		}
 	case paneAliases:
 		parts = []string{"↵ jump to the type", "esc clear, then close"}
 	case paneCompare:

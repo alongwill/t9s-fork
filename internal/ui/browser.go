@@ -51,7 +51,7 @@ type pane struct {
 	items    []talos.ResourceMeta // paneInstances
 	yaml     string               // paneYAML
 	cfgKind  string               // paneInstances, paneYAML: set when showing config documents
-	desc     []descLine           // paneDescribe
+	sub      descSubject          // paneDescribe
 	cmp      compareView          // paneCompare
 	diff     []diffLine           // paneDiff
 	loading  bool
