@@ -13,10 +13,11 @@ var configKindsJSON []byte
 
 // ConfigKind is one machine-config document kind (e.g. DHCPv4Config).
 type ConfigKind struct {
-	Kind  string `json:"kind"`
-	Group string `json:"group"`
-	Since string `json:"since"`
-	Desc  string `json:"desc"`
+	Kind   string `json:"kind"`
+	Group  string `json:"group"`
+	Since  string `json:"since"`
+	Desc   string `json:"desc"`
+	Ubuntu string `json:"ubuntu"` // the closest Ubuntu tool or file
 }
 
 var (

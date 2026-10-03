@@ -1,0 +1,154 @@
+# Knowledge notes for the t9s resource browser, keyed by display type
+# (ResourceDefinition.DisplayType, e.g. LinkStatus for LinkStatuses.net.talos.dev).
+#
+# Sources: the resource doc comments and Spec structs under
+# pkg/machinery/resources/ in the Talos source, and the Talos skill references
+# (agent-skills/talos/references/). `what` follows those; the Talos doc comments
+# of several types are copy-pasted and wrong (for example AddressStatus says
+# "physical network link status"), so `what` is worded from the Spec fields
+# instead. `ubuntu` is only set where the closest tool is well known; omit it
+# when unsure. One sentence per field.
+#
+# Fields:
+#   what:      what the resource is
+#   ubuntu:    the closest Ubuntu tool or file (optional)
+#   lookWhen:  situations where this is the resource to look at (optional)
+
+# --- network ---
+LinkStatus:
+  what: "The live state of a network link as the kernel reports it: up/down, MTU, MAC address, driver."
+  ubuntu: "`ip -d link show`, `/sys/class/net/<if>/`, `ethtool <if>`"
+  lookWhen: ["a link is down or has the wrong MTU", "a bond or VLAN member is missing"]
+LinkSpec:
+  what: "The desired state of a network link (name, up/down, MTU, bond, VLAN or bridge settings) that Talos applies to the kernel."
+  ubuntu: "netplan `ethernets:`/`bonds:`/`vlans:`, or `ip link set`"
+  lookWhen: ["a link is not configured the way your machine config says"]
+AddressStatus:
+  what: "An IP address that is currently assigned to a link, as the kernel reports it."
+  ubuntu: "`ip addr show`"
+  lookWhen: ["an expected address is missing from an interface", "an address came from DHCP or a VIP unexpectedly"]
+AddressSpec:
+  what: "An address Talos wants assigned to a link, with its family, scope and flags."
+  ubuntu: "netplan `addresses:`, or `ip addr add`"
+RouteStatus:
+  what: "A route in the kernel routing table, as the kernel reports it."
+  ubuntu: "`ip route show`"
+  lookWhen: ["traffic leaves through the wrong interface", "the default gateway is missing"]
+RouteSpec:
+  what: "A route Talos wants installed in the kernel: destination, gateway, link and metric."
+  ubuntu: "netplan `routes:`, or `ip route add`"
+OperatorSpec:
+  what: "A network operator (DHCPv4, DHCPv6, VIP or LLDP) that Talos runs on a link to obtain addresses or announce itself."
+  ubuntu: "`systemd-networkd` DHCP settings, `dhclient`"
+  lookWhen: ["DHCP does not hand out an address", "a virtual IP does not move"]
+ResolverStatus:
+  what: "The DNS servers Talos resolves names with."
+  ubuntu: "`resolvectl status`, `/etc/resolv.conf`"
+  lookWhen: ["name resolution fails on the node"]
+ResolverSpec:
+  what: "A set of DNS servers one source (machine config, DHCP, platform) asks Talos to use; Talos merges them into the resolver status."
+  ubuntu: "netplan `nameservers:`"
+HostnameStatus:
+  what: "The hostname and domain the node is actually using."
+  ubuntu: "`hostnamectl`, `/etc/hostname`"
+  lookWhen: ["the node has an unexpected hostname"]
+HostnameSpec:
+  what: "A hostname one source (machine config, DHCP, platform or default) asks Talos to use."
+  ubuntu: "`hostnamectl set-hostname`"
+NodeAddress:
+  what: "A computed list of the node's own addresses (default, current, accumulative or routed) that other controllers use to pick advertised and listen addresses."
+  lookWhen: ["a service advertises the wrong node IP"]
+TimeServerStatus:
+  what: "The NTP servers Talos currently uses to keep time."
+  ubuntu: "`timedatectl timesync-status`, `chronyc sources`"
+  lookWhen: ["the clock is off and certificates look invalid"]
+TimeServerSpec:
+  what: "A set of NTP servers one source (machine config, DHCP, platform or default) asks Talos to use."
+  ubuntu: "`/etc/systemd/timesyncd.conf`, `/etc/chrony/chrony.conf`"
+ProbeStatus:
+  what: "The result of a network probe from the machine config: whether it succeeded and the last error."
+  lookWhen: ["a probe-gated feature or address does not come up"]
+KubeSpanPeerStatus:
+  what: "The WireGuard state of one KubeSpan peer, identified by its public key."
+  ubuntu: "`wg show`"
+  lookWhen: ["a node cannot reach another node over KubeSpan"]
+
+# --- block ---
+Disk:
+  what: "A hardware disk the kernel found, with its size, model, serial and transport."
+  ubuntu: "`lsblk`, `lsblk -o NAME,SIZE,MODEL,SERIAL`, `/sys/block/`"
+  lookWhen: ["an expected disk is missing", "you need the stable name of a disk"]
+DiscoveredVolume:
+  what: "A volume Talos probed on a block device: its filesystem, label and UUID."
+  ubuntu: "`blkid`, `lsblk -f`"
+  lookWhen: ["a partition or filesystem is not recognised"]
+VolumeConfig:
+  what: "The configuration of a machine volume: how Talos locates, provisions, formats and encrypts it."
+  ubuntu: "`/etc/fstab`, `parted`, `cryptsetup`"
+VolumeStatus:
+  what: "The current status of a machine volume: its phase, device location and filesystem."
+  lookWhen: ["a volume is stuck before it is ready", "a user volume does not mount"]
+MountStatus:
+  what: "The final mount request for a volume, as Talos applied it."
+  ubuntu: "`findmnt`, `/proc/mounts`"
+  lookWhen: ["a mount fails (for example NFS)"]
+SystemDisk:
+  what: "The ID of the disk that holds the Talos system partitions."
+  ubuntu: "`findmnt /`, `lsblk`"
+
+# --- runtime ---
+MachineStatus:
+  what: "The aggregated status of the machine: its stage (booting, running, upgrading...) and whether it is ready, with any unmet conditions."
+  lookWhen: ["a node is not ready and you want to know which condition is unmet"]
+Service:
+  what: "The state of one Talos service: whether it is running and healthy."
+  ubuntu: "`systemctl status <unit>`"
+  lookWhen: ["a service shows as not running or unhealthy"]
+ExtensionStatus:
+  what: "An installed system extension with its name, version and metadata."
+  ubuntu: "`apt list --installed`, `dpkg -l`"
+  lookWhen: ["you need to confirm which extensions and versions are installed"]
+KernelParamStatus:
+  what: "The current and default value of one kernel parameter (sysctl), and whether the kernel supports it."
+  ubuntu: "`sysctl <name>`, `/proc/sys/`"
+  lookWhen: ["a sysctl does not have the value you set"]
+KernelParamSpec:
+  what: "A kernel parameter (sysctl) value that Talos wants applied."
+  ubuntu: "`/etc/sysctl.conf`, `/etc/sysctl.d/`"
+ExtensionServiceConfig:
+  what: "Files and environment variables provided to an extension service."
+  lookWhen: ["an extension service starts without the settings you supplied"]
+MachineConfig:
+  what: "The machine configuration the node is running, as a set of documents."
+  lookWhen: ["you need to see what configuration the node actually has"]
+
+# --- cluster ---
+Member:
+  what: "A cluster member discovered by Talos, usually derived from affiliates: its node ID, addresses, hostname and machine type."
+  lookWhen: ["a node is missing from the cluster member list"]
+Affiliate:
+  what: "A discovered potential cluster member and/or KubeSpan peer, as published by discovery."
+  lookWhen: ["discovery does not show a node you expect"]
+Identity:
+  what: "The node's identity as a cluster member: a random node ID that persists across reboots and resets on wipe."
+
+# --- etcd ---
+EtcdMember:
+  what: "The etcd member ID of this node."
+  lookWhen: ["etcd membership looks wrong after a rebuild"]
+EtcdSpec:
+  what: "The etcd settings Talos renders for the node: name, advertised and listen addresses, image and extra arguments."
+  lookWhen: ["etcd listens on or advertises the wrong address"]
+
+# --- kubernetes ---
+KubeletSpec:
+  what: "The final kubelet runtime configuration Talos starts the kubelet with."
+  ubuntu: "`/var/lib/kubelet/config.yaml`, the kubelet systemd unit"
+  lookWhen: ["the kubelet runs with different settings than you configured"]
+StaticPodStatus:
+  what: "The status of a kubelet static pod such as the API server, controller manager or scheduler."
+  ubuntu: "`/etc/kubernetes/manifests/`, `crictl ps`"
+  lookWhen: ["a control plane component does not start"]
+Nodename:
+  what: "The Kubernetes node name Talos derived for this node."
+  lookWhen: ["the node registers in Kubernetes under an unexpected name"]

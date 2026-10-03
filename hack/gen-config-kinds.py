@@ -14,7 +14,7 @@ docs = json.loads(m.group(1))
 meta = json.loads(re.search(r"window\.TALOS_META\s*=\s*(\{.*?\});", src, re.S).group(1))
 out = {
     "generatedFrom": meta.get("talosDescribe", ""),
-    "kinds": [{k: d.get(k, "") for k in ("kind", "group", "since", "desc")} for d in docs],
+    "kinds": [{k: d.get(k, "") for k in ("kind", "group", "since", "desc", "ubuntu")} for d in docs],
 }
 json.dump(out, sys.stdout, indent=1)
 sys.stdout.write("\n")
