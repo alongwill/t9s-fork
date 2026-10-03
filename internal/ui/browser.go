@@ -520,6 +520,22 @@ func (app App) breadcrumb() string {
 	return strings.Join(parts, " > ")
 }
 
+// browserIndicators is the right-aligned part of the header line.
+func (app App) browserIndicators() string {
+	return "src: " + app.sourceName()
+}
+
+// browserHeaderLine is the breadcrumb with the indicators pushed to the right.
+func (app App) browserHeaderLine() string {
+	avail := max(1, app.width-2)
+	ind := app.browserIndicators()
+	if lipgloss.Width(ind)+12 > avail { // too narrow: breadcrumb only
+		return cutWidth(app.breadcrumb(), avail)
+	}
+	left := cutWidth(app.breadcrumb(), avail-lipgloss.Width(ind)-2)
+	return padRight(left, avail-lipgloss.Width(ind)) + ind
+}
+
 // syncBrowserState keeps AppState in step with the stack depth.
 func (app App) syncBrowserState() App {
 	if len(app.browser.stack) <= 1 {

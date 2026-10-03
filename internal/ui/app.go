@@ -212,9 +212,11 @@ type App struct {
 	resourceDefs map[string][]talos.ResourceDef // node IP → cached `get rd`
 	resSem       chan struct{}                  // caps concurrent per-type counts
 	source       talos.ResourceSource           // resource browser data source (nil = CLI)
-	configDocs   map[string]cfgCacheEntry       // node IP → machine config documents
-	cmd          cmdPrompt                      // `:` command prompt
-	cmdHistory   []string                       // submitted commands, oldest first
+	sourceMode   string                         // --source: auto|grpc|cli
+	dialSource   func(ctx context.Context, cfgPath, contextName string) (talos.ResourceSource, error)
+	configDocs   map[string]cfgCacheEntry // node IP → machine config documents
+	cmd          cmdPrompt                // `:` command prompt
+	cmdHistory   []string                 // submitted commands, oldest first
 
 	// Find in log/dmesg views (/ n N)
 	findInput  textinput.Model
@@ -269,7 +271,7 @@ func (app App) src() talos.ResourceSource {
 }
 
 func (app App) Init() tea.Cmd {
-	return tea.Batch(app.loadNodes(), doTick(), loadClientVersion())
+	return tea.Batch(app.loadNodes(), doTick(), loadClientVersion(), app.connectSource())
 }
 
 func doTick() tea.Cmd {
@@ -312,6 +314,9 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		return app.handleKey(msg)
+
+	case sourceReadyMsg:
+		return app.handleSourceReady(msg), nil
 
 	case resourceDefsMsg:
 		return app.handleResourceDefs(msg)
@@ -870,7 +875,7 @@ func resourceLine(app App) string {
 	case StateContextSwitcher:
 		return fmt.Sprintf("Contexts (%d)", len(app.contexts))
 	case StateCategories, StateBrowser:
-		return cutWidth(app.breadcrumb(), max(1, app.width-2))
+		return app.browserHeaderLine()
 	}
 	return ""
 }
@@ -1296,6 +1301,9 @@ func (app *App) cleanup() {
 	app.stopDmesg()
 	app.stopUpgrade()
 	app.stopHealth()
+	if app.source != nil {
+		_ = app.source.Close()
+	}
 }
 
 // --- Helpers ---

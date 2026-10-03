@@ -18,16 +18,23 @@ func main() {
 		cfgPath  string
 		talosCtx string
 		showVer  bool
+		source   string
 	)
 
 	flag.StringVar(&cfgPath, "talosconfig", "", "Path to talosconfig (default: $TALOSCONFIG or ~/.talos/config)")
 	flag.StringVar(&talosCtx, "context", "", "Talos context to use")
+	flag.StringVar(&source, "source", ui.SourceAuto, "Resource browser data source: auto (gRPC, falling back to the CLI), grpc, or cli")
 	flag.BoolVar(&showVer, "version", false, "Print version and exit")
 	flag.Parse()
 
 	if showVer {
 		fmt.Printf("t9s v%s\n", version)
 		os.Exit(0)
+	}
+
+	if !ui.ValidSourceMode(source) {
+		fmt.Fprintf(os.Stderr, "invalid --source %q (want auto, grpc or cli)\n", source)
+		os.Exit(2)
 	}
 
 	cfg, err := config.Load(cfgPath)
@@ -40,7 +47,7 @@ func main() {
 		talosCtx = cfg.Context
 	}
 
-	app := ui.New(cfg, cfgPath, talosCtx)
+	app := ui.New(cfg, cfgPath, talosCtx).WithSourceMode(source)
 
 	p := tea.NewProgram(app,
 		tea.WithAltScreen(),

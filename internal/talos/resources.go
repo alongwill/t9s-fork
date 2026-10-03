@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // rdEnvelope mirrors one `get rd -o json` object. Keys are the COSI
@@ -128,6 +131,9 @@ func (c *Client) GetResourceYAML(ctx context.Context, node, ns, typ, id string) 
 func IsPermissionDenied(err error) bool {
 	if err == nil {
 		return false
+	}
+	if status.Code(err) == codes.PermissionDenied {
+		return true
 	}
 	s := err.Error()
 	return strings.Contains(s, "PermissionDenied") || strings.Contains(s, "not authorized")

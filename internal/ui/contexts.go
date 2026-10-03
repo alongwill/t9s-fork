@@ -46,7 +46,9 @@ func (app App) handleContextsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		app.statusMsg = fmt.Sprintf("Switched to context: %s", okStyle.Render(newCtx))
 		app.state = StateNodeList
 		app.nodeLoading = true
-		return app, app.loadNodes()
+		var srcCmd tea.Cmd
+		app, srcCmd = app.resetSource()
+		return app, tea.Batch(app.loadNodes(), srcCmd)
 
 	case "esc", "q":
 		app.state = app.prev
