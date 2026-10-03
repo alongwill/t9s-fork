@@ -120,6 +120,15 @@ func (app App) browserMove(delta int) App {
 			return
 		}
 		p.cur = clamp(p.cur+delta, 0, max(0, n-1))
+		if p.kind == paneTypes { // scroll is in visual lines: headers take space
+			vis := app.browser.typeVisual(p.category, p.filter)
+			if p.cur == 0 {
+				p.scroll = 0 // keep the first section header in view
+			} else {
+				p.scroll = clampScrollStart(p.scroll, visualIndex(vis, p.cur), len(vis), rows)
+			}
+			return
+		}
 		p.scroll = clampScrollStart(p.scroll, p.cur, n, rows)
 	})
 	return app
@@ -334,6 +343,7 @@ func (app App) openBrowser(n talos.Node) (App, tea.Cmd) {
 	}
 	app.statusMsg = ""
 	app = app.syncBrowserState()
+	app, _ = app.useCachedConfig()
 	if defs, ok := app.resourceDefs[n.IP]; ok {
 		app.browser.defs = defs
 		return app, nil
@@ -361,19 +371,27 @@ func (app App) browserEnter() (App, tea.Cmd) {
 		cmd := app.loadCounts(types) // skips types already counted or in flight
 		app.browser = app.browser.markCountsLoading(types)
 		app = app.syncBrowserState()
-		return app, cmd
+		var cfgCmd tea.Cmd
+		app, cfgCmd = app.ensureConfig()
+		return app, tea.Batch(cmd, cfgCmd)
 
 	case paneTypes:
-		rows := b.typeRows(p.category, p.filter)
+		rows := b.typeEntries(p.category, p.filter)
 		if p.cur >= len(rows) {
 			return app, nil
 		}
-		return app.openType(rows[p.cur])
+		if rows[p.cur].config {
+			return app.openConfigKind(rows[p.cur].ck)
+		}
+		return app.openType(rows[p.cur].def)
 
 	case paneInstances:
 		items := filterInstances(p.items, p.filter)
 		if p.cur >= len(items) {
 			return app, nil
+		}
+		if p.cfgKind != "" {
+			return app.openConfigYAML(p.cfgKind, items[p.cur].ID)
 		}
 		return app.openYAML(p.def, items[p.cur])
 	}
@@ -434,7 +452,9 @@ func (app App) browserReload() (App, tea.Cmd) {
 		app.resourceDefs = defs
 		b.defs, b.counts, b.singles, b.loading = nil, nil, nil, nil
 		b.defsLoading, b.defsErr = true, ""
+		b.docs, b.cfgState, b.cfgErr = nil, cfgNone, ""
 		app.browser = b
+		app = app.dropConfigCache()
 		app.statusMsg = "Reloading resource definitions..."
 		return app, app.loadResourceDefs()
 
@@ -460,15 +480,40 @@ func (app App) browserReload() (App, tea.Cmd) {
 		app.browser = b
 		cmd := app.loadCounts(types) // skips types already counted or in flight
 		app.browser = app.browser.markCountsLoading(types)
-		return app, cmd
+		return app.reloadConfig(cmd)
 
 	case paneInstances:
+		if p.cfgKind != "" {
+			return app.reloadConfig(nil)
+		}
 		app.browser = b.withTop(func(p *pane) { p.loading, p.err = true, "" })
 		return app, app.loadInstances(p.def)
 
 	case paneYAML:
+		if p.cfgKind != "" {
+			return app.reloadConfig(nil)
+		}
 		app.browser = b.withTop(func(p *pane) { p.loading, p.err = true, "" })
 		return app, app.loadYAML(p.def, p.meta)
 	}
 	return app, nil
+}
+
+// dropConfigCache forgets the current node's cached config documents.
+func (app App) dropConfigCache() App {
+	cache := make(map[string]cfgCacheEntry, len(app.configDocs))
+	for k, v := range app.configDocs {
+		if k != app.browser.node.IP {
+			cache[k] = v
+		}
+	}
+	app.configDocs = cache
+	return app
+}
+
+// reloadConfig refetches the node's config documents; extra is batched in.
+func (app App) reloadConfig(extra tea.Cmd) (App, tea.Cmd) {
+	app = app.dropConfigCache()
+	app.browser.cfgState, app.browser.cfgErr = cfgLoading, ""
+	return app, tea.Batch(extra, app.loadConfigDocs())
 }

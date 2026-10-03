@@ -75,7 +75,7 @@ func browserApp(width, height, depth, nTypes int) App {
 	defs, counts := makeBrowserDefs(nTypes)
 	n := app.nodes[1]
 	app.selNode = &n
-	b := browser{node: n, defs: defs, counts: counts}
+	b := browser{node: n, defs: defs, counts: counts, cfgState: cfgDenied}
 	b.stack = []pane{{kind: paneCategories, title: "Categories"}}
 	if depth >= 2 {
 		b.stack = append(b.stack, pane{kind: paneTypes, title: "Networking", category: testNet})

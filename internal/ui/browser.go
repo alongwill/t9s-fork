@@ -45,6 +45,7 @@ type pane struct {
 	meta     talos.ResourceMeta   // paneYAML
 	items    []talos.ResourceMeta // paneInstances
 	yaml     string               // paneYAML
+	cfgKind  string               // paneInstances, paneYAML: set when showing config documents
 	loading  bool
 	err      string
 }
@@ -73,6 +74,10 @@ type browser struct {
 
 	defsLoading bool
 	defsErr     string
+
+	docs     []talos.ConfigDoc // the node's machine config documents
+	cfgState cfgState
+	cfgErr   string
 
 	prompting  bool
 	promptKind promptKind
@@ -240,10 +245,21 @@ func (b browser) categoryRows(filter string) []catRow {
 	var rows []catRow
 	for _, c := range catalog.Categories {
 		defs := b.typesIn(c.Key)
-		if len(defs) == 0 {
+		kinds := b.configKindsIn(c.Key)
+		if len(defs)+len(kinds) == 0 {
 			continue
 		}
-		r := catRow{key: c.Key, label: c.Label, known: len(defs), counted: true}
+		r := catRow{key: c.Key, label: c.Label, known: len(defs) + len(kinds), counted: true}
+		if len(kinds) > 0 {
+			if b.cfgState != cfgLoaded {
+				r.counted = false
+			}
+			for _, k := range kinds {
+				if len(b.docsOfKind(k.Kind)) > 0 {
+					r.present++
+				}
+			}
+		}
 		for _, d := range defs {
 			n, ok := b.counts[d.Type]
 			if !ok {
@@ -460,7 +476,7 @@ func (app App) paneLen(p pane) int {
 	case paneCategories:
 		return len(b.categoryRows(p.filter))
 	case paneTypes:
-		return len(b.typeRows(p.category, p.filter))
+		return len(b.typeEntries(p.category, p.filter))
 	case paneInstances:
 		return len(filterInstances(p.items, p.filter))
 	case paneYAML:
@@ -478,7 +494,7 @@ func (app App) breadcrumb() string {
 		case paneTypes:
 			parts = append(parts, catalog.Label(p.category))
 		case paneInstances:
-			parts = append(parts, p.def.DisplayType)
+			parts = append(parts, p.title)
 		case paneYAML:
 			parts = append(parts, p.meta.ID)
 		}

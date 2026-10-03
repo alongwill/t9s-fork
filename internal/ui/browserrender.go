@@ -86,7 +86,7 @@ func (app App) renderPane(p pane, w, h int, active bool) []string {
 func (app App) paneTitle(p pane) string {
 	switch p.kind {
 	case paneTypes:
-		return fmt.Sprintf("%s (%d)", p.title, len(app.browser.typeRows(p.category, p.filter)))
+		return fmt.Sprintf("%s (%d)", p.title, len(app.browser.typeEntries(p.category, p.filter)))
 	case paneInstances:
 		if p.loading {
 			return p.title
@@ -196,32 +196,52 @@ func (app App) categoryLines(p pane, iw, inner int, active bool) []string {
 
 func (app App) typeLines(p pane, iw, inner int, active bool) []string {
 	b := app.browser
-	rows := b.typeRows(p.category, p.filter)
-	if len(rows) == 0 {
+	entries := b.typeEntries(p.category, p.filter)
+	vis := b.typeVisual(p.category, p.filter)
+	if len(vis) == 0 {
 		return messageLines(iw, inner, dimStyle, "(none)")
 	}
-	start := clampScrollStart(p.scroll, p.cur, len(rows), inner)
+	cur := 0
+	if p.cur > 0 {
+		cur = visualIndex(vis, p.cur)
+	}
+	start := clampScrollStart(p.scroll, cur, len(vis), inner)
 	avail := max(0, iw-2)
 	const countW, aliasW = 5, 12
 	showAlias := avail >= 30
 	var out []string
-	for i := start; i < len(rows) && i < start+inner; i++ {
-		d := rows[i]
-		cnt, dim := b.typeCell(d)
+	for i := start; i < len(vis) && i < start+inner; i++ {
+		v := vis[i]
+		switch {
+		case v.header != "":
+			out = append(out, colHeaderStyle.Render(fit("  "+v.header, iw)))
+			continue
+		case v.note != "":
+			out = append(out, dimStyle.Render(fit("    "+v.note, iw)))
+			continue
+		}
+		e := entries[v.sel]
+		selected := v.sel == p.cur
+		var cnt string
+		var dim bool
+		alias := ""
+		if e.config {
+			cnt, dim = b.configCell(e.ck.Kind)
+		} else {
+			cnt, dim = b.typeCell(e.def)
+			if len(e.def.Aliases) > 0 {
+				alias = e.def.Aliases[0]
+			}
+		}
 		var text string
 		if showAlias {
-			alias := ""
-			if len(d.Aliases) > 0 {
-				alias = d.Aliases[0]
-			}
 			nameW := avail - aliasW - countW - 2
-			text = marker(i == p.cur) + fit(d.DisplayType, nameW) + " " + fit(alias, aliasW) + " " +
-				padLeft(cnt, countW)
+			text = marker(selected) + fit(e.name(), nameW) + " " + fit(alias, aliasW) + " " + padLeft(cnt, countW)
 			text = fit(text, iw)
 		} else {
-			text = rowLR(i == p.cur, d.DisplayType, cnt, iw)
+			text = rowLR(selected, e.name(), cnt, iw)
 		}
-		out = append(out, rowStyle(i == p.cur, active, dim).Render(text))
+		out = append(out, rowStyle(selected, active, dim).Render(text))
 	}
 	return out
 }
@@ -249,6 +269,10 @@ func (app App) instanceLines(p pane, iw, inner int, active bool) []string {
 		{"VER", 4, func(i int) string { return items[i].Version }},
 		{"PHASE", 7, func(i int) string { return items[i].Phase }},
 	}
+	idName := "ID"
+	if p.cfgKind != "" { // config documents have a name only
+		cols, idName = nil, "NAME"
+	}
 	used := func() int {
 		n := 0
 		for _, c := range cols {
@@ -269,7 +293,7 @@ func (app App) instanceLines(p pane, iw, inner int, active bool) []string {
 	}
 	idW := max(1, avail-used())
 
-	header := "  " + fit("ID", idW)
+	header := "  " + fit(idName, idW)
 	for _, c := range cols {
 		header += " " + fit(c.name, c.w)
 	}

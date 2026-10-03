@@ -136,6 +136,13 @@ type resourceInstancesMsg struct {
 	err       error
 }
 
+type configDocsMsg struct {
+	node   string
+	docs   []talos.ConfigDoc
+	denied bool
+	err    error
+}
+
 type resourceYAMLMsg struct {
 	node, typ, id string
 	yaml          string

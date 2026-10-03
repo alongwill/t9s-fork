@@ -211,6 +211,7 @@ type App struct {
 	browser      browser
 	resourceDefs map[string][]talos.ResourceDef // node IP → cached `get rd`
 	resSem       chan struct{}                  // caps concurrent per-type counts
+	configDocs   map[string]cfgCacheEntry       // node IP → machine config documents
 
 	// Find in log/dmesg views (/ n N)
 	findInput  textinput.Model
@@ -306,6 +307,9 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case resourceCountMsg:
 		return app.handleResourceCount(msg), nil
+
+	case configDocsMsg:
+		return app.handleConfigDocs(msg), nil
 
 	case resourceInstancesMsg:
 		return app.handleResourceInstances(msg), nil
