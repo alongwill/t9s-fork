@@ -110,16 +110,18 @@ func buildHelpContent() string {
 		{"f", "Toggle FullScreen (hide header, hints and footer)"},
 		{"t", "Toggle Timestamps (~ marks arrival time, UTC)"},
 		{"w", "Toggle Wrap"},
-		{"/  n  N", "Find, next, previous"},
-		{"Esc / q", "Clear find, leave FullScreen, then back"},
+		{"/", "Filter lines live: words, !word, -f fuzzy, -r regex"},
+		{"n / N", "Next / previous visible line (with a filter)"},
+		{"Esc / q", "Clear filter, leave FullScreen, then back"},
 	}))
 	sb.WriteByte('\n')
 
-	sb.WriteString(section("Dmesg", [][2]string{
-		{"↑↓", "Scroll"},
-		{"g", "Go to top"},
-		{"G", "Go to bottom"},
-		{"Esc / q", "Back"},
+	sb.WriteString(section("Dmesg (same keys as Logs)", [][2]string{
+		{"↑↓ / j k", "Select line"},
+		{"s f t w", "Autoscroll, FullScreen, Timestamps (kernel time), Wrap"},
+		{"/", "Filter lines: words, !word, -f fuzzy, -r regex"},
+		{"g / G", "Top / bottom (G resumes Autoscroll)"},
+		{"Esc / q", "Clear filter, leave FullScreen, then back"},
 	}))
 	sb.WriteByte('\n')
 

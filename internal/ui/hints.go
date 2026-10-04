@@ -56,17 +56,19 @@ func stateHints(app App) []hint {
 			{"t", "Timestamps"},
 			{"w", "Wrap"},
 			{"g/G", "Top/Bottom"},
-			{"/", "Find"},
+			{"/", "Filter"},
 			{"n/N", "Next/Prev"},
 			{"Esc/q", "Back"},
 		}
 	case StateDmesg:
 		return []hint{
 			{"↑↓", "Select line"},
-			{"PgUp/Dn", "Half page"},
+			{"s", "Autoscroll"},
+			{"f", "FullScreen"},
+			{"t", "Timestamps"},
+			{"w", "Wrap"},
 			{"g/G", "Top/Bottom"},
-			{"/", "Find"},
-			{"n/N", "Next/Prev"},
+			{"/", "Filter"},
 			{"Esc/q", "Back"},
 		}
 	case StateMachineConfig:

@@ -33,7 +33,7 @@ The aim of this project is to make it easier to navigate, observe and manage you
 - 🔍 **Per-node resource views** — disks, processes, containers, network addresses
 - 🎓 **Learning aids** — `d` explains a type (what it is, its Ubuntu equivalent, which controllers write and read it), a next-step hint line and tips
 - 🗂️ **Resource browser** — browse a node's machine-config documents and COSI resources by category (Networking, Block, …), greyed when absent or empty, with YAML and describe panes, a `ctrl+a` all-types palette and `:` jump commands (`a` on a node)
-- 📊 **Metrics** — CPU/RAM stats with delta, auto-refreshed every 5s
+- 📊 **Metrics** — CPU/RAM stats with delta and the pod namespace, auto-refreshed every 5s
 - 📄 **Machine config** — read-only YAML viewer
 - 🧩 **Extensions** — installed list + Siderolabs catalog browser (requires `crane`)
 - ⬆️ **Upgrades** — Talos and Kubernetes, with version pre-fill and a `--drain` toggle (`--preserve` on older talosctl)
@@ -289,12 +289,28 @@ A state line sits under the title: `Autoscroll:On     FullScreen:Off     Timesta
 | <kbd>f</kbd> | FullScreen: hide the header, hints and footer |
 | <kbd>t</kbd> | Timestamps. Shows the time found in the line (RFC 3339, `2006/01/02 15:04:05`, klog, JSON `ts`/`time`); a line without one shows the time it arrived, marked `~`. All times are UTC |
 | <kbd>w</kbd> | Wrap long lines (off: lines are cut with `…`) |
-| <kbd>/</kbd> <kbd>n</kbd> <kbd>N</kbd> | Find, next, previous |
-| <kbd>Esc</kbd> / <kbd>q</kbd> | Clear find, leave FullScreen, then back |
+| <kbd>/</kbd> | Filter: lines that do not match disappear, live as you type (grammar below). <kbd>Enter</kbd> keeps it, <kbd>Esc</kbd> in the prompt restores the previous filter |
+| <kbd>n</kbd> / <kbd>N</kbd> | With a filter: next / previous visible line (wraps) |
+| <kbd>Esc</kbd> / <kbd>q</kbd> | Clear the filter, leave FullScreen, then back |
+
+**Filter grammar** (case-insensitive; the state line shows `Filter:<text> (shown/total)`):
+
+| Filter | Keeps |
+|--------|-------|
+| `dns timeout` | lines containing every word, in any order |
+| `error !probe` | `error` but not `probe` (`!word` can be combined with words) |
+| `-f term` | fuzzy: the letters of `term` in order, scored; scattered matches are hidden. `-f !term` inverts |
+| `-r regex` | lines matching the regular expression (an invalid one keeps everything and says so) |
+
+New lines are tested as they arrive; with Autoscroll on the cursor follows the newest matching line, and with it off `+N new` counts only matching lines. Matches are highlighted.
 
 The level word is coloured (`ERROR` red, `WARN` yellow, `INFO` blue, `DEBUG` dim; also `level=info`, `"level":"info"`, `[INFO]` and klog `E1003`), embedded timestamps are dim and `key=` names in logfmt lines are cyan.
 
-### Dmesg / Health
+### Dmesg
+
+Dmesg uses the same viewer as Logs: the same state line, the same keys (<kbd>s</kbd> Autoscroll, <kbd>f</kbd> FullScreen, <kbd>t</kbd> Timestamps, <kbd>w</kbd> Wrap, <kbd>/</kbd> filter with the grammar above, <kbd>n</kbd>/<kbd>N</kbd>, <kbd>g</kbd>/<kbd>G</kbd>, <kbd>Esc</kbd>/<kbd>q</kbd>). Lines look like `kern:    info: [2026-10-04T12:34:56.123456789Z]: message`. The level is coloured (`emerg`/`alert`/`crit`/`err` red, `warning` yellow, `notice`/`info` blue, `debug` dim line); the facility and the kernel timestamp are dim. <kbd>t</kbd> shows the kernel's own timestamp (UTC, milliseconds); a line without one shows its arrival time, marked `~`.
+
+### Health
 
 | Key | Action |
 |-----|--------|
@@ -349,7 +365,7 @@ A rounded box with the container ID, pod namespace / pod / container (parsed fro
 | Machine Config | <kbd>m</kbd> | Machine config YAML |
 | Extensions | <kbd>e</kbd> | Installed Talos extensions |
 | Ext. Catalog | <kbd>C</kbd> | Available extensions from the Siderolabs registry |
-| Metrics | <kbd>t</kbd> | CPU/RAM per container with delta |
+| Metrics | <kbd>t</kbd> | CPU/RAM per container with delta, with the pod namespace |
 | Processes | <kbd>p</kbd> | Running processes sorted by memory |
 | Containers | <kbd>c</kbd> | containerd containers (system + k8s namespaces) |
 | Resources | <kbd>a</kbd> | Resource browser: categories, types, instances, YAML |
