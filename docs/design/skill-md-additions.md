@@ -190,3 +190,24 @@ Notes for new network types go in the Talos skill's `knowledge/resource-notes.ya
 | Disk view drawing: bar layout (`layoutWidths`), segment cells, role colours and notes, table | `internal/ui/diskviewrender.go` |
 
 The old `StateDisks` view (`disks.go`, `GetDisks`, `GetVolumeStatus`) is gone.
+
+## Read-only default, Omni, role, padlocks: new rows
+
+| Need | File |
+|---|---|
+| `--readonly` (default true) / `--write` / `T9S_READONLY`: `resolveWrite` | `cmd/main.go`, `cmd/write.go` |
+| Client write guard: `ErrReadOnly`, `MutatingMethods`, `SetWritable`, `refuseWrite` (first line of every mutating method) | `internal/talos/readonly.go`, `client.go` |
+| UI guard: `dangerousActions` (single list), `refuseDangerous(id)`, `WithWrite`, RO/RW badge | `internal/ui/readonly.go` |
+| talosconfig `auth.siderov1`, `DetectOmni` (paths a and b), `Named` | `internal/config/config.go`, `omni.go` |
+| Client certificate roles and expiry: `ParseCert`, `CertInfo`, `ExpiryWarning` | `internal/config/roles.go` |
+| Identity on the App (`id`): Omni badge, lazy SideroLink probe (path c, `omniProbeMsg`), role chips, `headerLeft(level)` | `internal/ui/identity.go` |
+| Help "Status" section (mode, platform and how it was detected, role, Omni role note) | `internal/ui/status.go` |
+| Padlock (`padlock()`, `T9S_ASCII=1`), `lockReason`/`lockShort`/`lockMessage`, `lockPanel` | `internal/ui/padlock.go` |
+
+Rules:
+
+- **A new key that changes a cluster** must (1) call a `Client` method that starts with `c.refuseWrite()` and is listed in `talos.MutatingMethods`, (2) have an entry in `dangerousActions`, (3) call `app.refuseDangerous(id)` first in its handler, and (4) be left out of `stateHints` and `buildHelpContentFor` unless `app.writeMode`. `TestMutatingMethodsCallTheGuardFirst` and `TestDangerousActionsCoverClientMutations` fail when one of these is missing.
+- A new "denied" cell uses `padlock()`, never the text `lock`. Size its column with `lipgloss.Width(padlock())` (2 cells; `[locked]` is 8 in ASCII mode). Rune-indexed span painters (`paintSpans`) need `padlockRunes()`, not the cell width.
+- The reason for a denial comes from `app.lockReason()` (Omni vs role); do not hard-code `requires os:admin`.
+- The Omni role text follows `talos_backend.go` (`setRoleHeaders`) and `sensitive_read_guard.go` in the Omni source. If those change, update `omniRoleNote` in `status.go`.
+- Never show the SideroLink `host` value raw: it can carry a join token in its query string (`siderolinkHost` keeps only the hostname).
