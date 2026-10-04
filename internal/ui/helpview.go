@@ -163,7 +163,15 @@ func buildHelpContentFor(app App) string {
 	}))
 	sb.WriteByte('\n')
 
-	sb.WriteString(section("Extensions / Metrics / Processes / Disks / Addresses", [][2]string{
+	sb.WriteString(section("Extensions", [][2]string{
+		{"↑↓ / j k", "Navigate"},
+		{"↵", "Schematic: the Image Factory YAML this node was built from (Esc returns)"},
+		{"C", "Extension catalog"},
+		{"Esc / q", "Back"},
+	}))
+	sb.WriteByte('\n')
+
+	sb.WriteString(section("Metrics / Processes / Disks / Addresses", [][2]string{
 		{"↑↓ / j k", "Navigate"},
 		{"r", "Refresh"},
 		{"Esc / q", "Back"},

@@ -84,6 +84,7 @@ func stateHints(app App) []hint {
 	case StateExtensions:
 		return []hint{
 			{"↑↓", "Navigate"},
+			{"↵", "Schematic YAML"},
 			{"C", "Catalog"},
 			{"Esc/q", "Back"},
 		}
@@ -142,6 +143,8 @@ func stateHints(app App) []hint {
 			return []hint{{"↵", "Confirm"}, {"tab", "Toggle drain/preserve"}, {"Esc/q", "Back"}}
 		}
 		return []hint{{"↵", "Confirm"}, {"Esc/q", "Back"}}
+	case StateSchematic:
+		return []hint{{"↑↓", "Scroll"}, {"g/G", "Top/Bottom"}, {"Esc/q", "Back"}}
 	case StateContextSwitcher:
 		return []hint{
 			{"↑↓", "Navigate"},

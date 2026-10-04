@@ -36,7 +36,7 @@ The aim of this project is to make it easier to navigate, observe and manage you
 - 📊 **Metrics** — CPU/RAM stats with delta, auto-refreshed every 5s
 - 📄 **Machine config** — read-only YAML viewer
 - 🔒 **Read-only by default** — keys that change a cluster are hidden and refused until you start t9s with `--write`; an `RO`/`RW` badge, the Omni or Talos platform and your current role sit in the top bar
-- 🧩 **Extensions** — installed list + Siderolabs catalog browser (requires `crane`)
+- 🧩 **Extensions** — installed list, the schematic YAML it was built from (`Enter`, fetched from the Image Factory), and the Siderolabs catalog browser (requires `crane`)
 - ⬆️ **Upgrades** — Talos and Kubernetes, with version pre-fill and a `--drain` toggle (`--preserve` on older talosctl)
 - 🩺 **Health** — streaming cluster health checks
 - 🔀 **Multi-context** — switch talosconfig context at runtime (`x`)
@@ -348,6 +348,12 @@ A rounded box with the container ID, pod namespace / pod / container (parsed fro
 | <kbd>Esc</kbd> / <kbd>q</kbd> | Back to the containers list, cursor kept |
 
 `processes` has no parent-PID column, so only the row with the container's own PID is shown, not its children. A pod sandbox row has no logs.
+
+### Extensions and the schematic
+
+The Extensions view (`e`) shows `schematic <short id> · <factory host>` under its title. `Enter` opens a pane titled `Schematic <id[:12]>` with the full ID, the flavor, the factory URL and the schematic YAML. The same pane opens with `y` in the describe pane of `ImageFactorySchematic`.
+
+t9s reads the ID from `ImageFactorySchematics.runtime.talos.dev` (Talos 1.14+). On older nodes it uses the extension named `schematic`, whose version is the ID, and assumes `https://factory.talos.dev`. The YAML comes from `GET <factory>/schematics/<id>` (`Accept: application/yaml`, 10 s timeout, cached for the session). It is a read, so it works in read-only mode. If the factory answers 401/403 (a private factory) the pane shows `🔒 the factory needs authentication; schematic ID <id>`; on a network error it shows the error with the ID and URL so you can open it yourself.
 
 ### Upgrade (needs `--write`)
 

@@ -142,6 +142,9 @@ func (app App) resourceDescribeRows(s descSubject) []drow {
 		rows = labelled(rows, "ON UBUNTU", note.Ubuntu)
 		rows = labelled(rows, "LOOK HERE", strings.Join(note.LookWhen, " · "))
 	}
+	if d.Type == talos.SchematicType {
+		rows = labelled(rows, "SCHEMATIC", "y on the instance shows the factory's YAML")
+	}
 	if s.hasMeta && s.meta.Owner != "" {
 		rows = labelled(rows, "WRITTEN BY", fmt.Sprintf("%s (owner of %s)", s.meta.Owner, s.meta.ID))
 	}
@@ -430,6 +433,9 @@ func (app App) openDescribe() (App, tea.Cmd) {
 // describeToYAML implements `y` in the describe pane: close it and open the
 // row underneath, as Enter would.
 func (app App) describeToYAML() (App, tea.Cmd) {
+	if p, ok := app.browser.top(); ok && !p.sub.cfg && p.sub.def.Type == talos.SchematicType {
+		return app.openSchematic(app.browser.node.IP, nil)
+	}
 	app = app.popPane()
 	return app.browserEnter()
 }

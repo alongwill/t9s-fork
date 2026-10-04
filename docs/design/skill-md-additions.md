@@ -211,3 +211,12 @@ Rules:
 - The reason for a denial comes from `app.lockReason()` (Omni vs role); do not hard-code `requires os:admin`.
 - The Omni role text follows `talos_backend.go` (`setRoleHeaders`) and `sensitive_read_guard.go` in the Omni source. If those change, update `omniRoleNote` in `status.go`.
 - Never show the SideroLink `host` value raw: it can carry a join token in its query string (`siderolinkHost` keeps only the hostname).
+
+## Schematic YAML (Extensions view): new rows
+
+| Need | File |
+|---|---|
+| `GetSchematicInfo` (resource, then extension fallback), `SchematicURL` + `ValidSchematicID` (64 hex), `FetchSchematicYAML` (10 s, cached per URL), `ErrFactoryAuth` | `internal/talos/schematic.go` |
+| Schematic pane (`StateSchematic`): open from Extensions `Enter` or describe `y`, error texts, header line | `internal/ui/schematic.go` |
+
+A renderer must end its output with a newline: `View` pads the main area with `blankRow` lines, and a missing trailing newline glues the first blank row onto the last content line (doubling its width).

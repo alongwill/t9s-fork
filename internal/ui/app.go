@@ -40,6 +40,7 @@ const (
 	StateCategories // resource browser, root pane only
 	StateBrowser    // resource browser, deeper panes
 	StateContainerDetail
+	StateSchematic // Image Factory schematic YAML
 )
 
 const (
@@ -218,6 +219,17 @@ type App struct {
 	// writeMode is false by default: mutating actions are hidden and refused
 	// (--write turns it on, see WithWrite).
 	writeMode bool
+
+	// Schematic pane and the Extensions header line
+	schemVP      viewport.Model
+	schemInfo    talos.SchematicInfo
+	schemYAML    string
+	schemErr     string
+	schemLoading bool
+	schemSeq     uint64
+	schemOrigin  AppState
+	extSchem     talos.SchematicInfo
+	extSchemOK   bool
 
 	// id is who t9s talks to: Omni or plain Talos, and the current role.
 	id          identity
@@ -471,6 +483,15 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		app, probeCmd := app.probeOmni()
 		return app, tea.Batch(app.loadNodeDetails(), probeCmd)
+
+	case schematicMsg:
+		return app.handleSchematic(msg), nil
+
+	case schematicInfoMsg:
+		if app.selNode != nil && app.selNode.IP == msg.node && app.state == StateExtensions {
+			app.extSchem, app.extSchemOK = msg.info, msg.ok
+		}
+		return app, nil
 
 	case omniProbeMsg:
 		return app.handleOmniProbe(msg), nil
@@ -949,6 +970,8 @@ func resourceLine(app App) string {
 		return fmt.Sprintf("Contexts (%d)", len(app.contexts))
 	case StateCategories, StateBrowser:
 		return app.browserHeaderLine()
+	case StateSchematic:
+		return "Schematic › " + shortID(app.schemInfo.ID)
 	}
 	return ""
 }
@@ -991,6 +1014,8 @@ func viewTitle(s AppState) string {
 		return "[ Upgrade K8s ]"
 	case StateContextSwitcher:
 		return "[ Contexts ]"
+	case StateSchematic:
+		return "[ Schematic ]"
 	case StateCategories, StateBrowser:
 		return "[ Resources ]"
 	}
@@ -1067,6 +1092,8 @@ func (app App) renderMain(height int) string {
 		return app.renderUpgrade(height)
 	case StateContextSwitcher:
 		return app.renderContextSwitcher(height)
+	case StateSchematic:
+		return app.renderSchematic(height)
 	case StateCategories, StateBrowser:
 		return app.renderBrowser(height)
 	}

@@ -6,6 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/florianspk/t9s/internal/talos"
 )
 
 func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
@@ -57,10 +59,11 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		}
 		app.selNode = n
 		app.extensions = nil
+		app.extSchem, app.extSchemOK = talos.SchematicInfo{}, false
 		app.extLoading = true
 		app.statusMsg = "Loading extensions..."
 		app = app.goTo(StateExtensions)
-		return app, app.loadExtensions()
+		return app, tea.Batch(app.loadExtensions(), app.loadSchematicInfo())
 
 	case "C":
 		n := app.selectedNode()

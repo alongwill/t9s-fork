@@ -129,6 +129,8 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app.handleUpgradeKey(msg)
 	case StateContextSwitcher:
 		return app.handleContextsKey(msg)
+	case StateSchematic:
+		return app.handleSchematicKey(msg)
 	case StateCategories, StateBrowser:
 		return app.handleBrowserKey(msg)
 	}
