@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
@@ -34,7 +35,7 @@ func newLogsApp(width, height, nLines int) App {
 	app := App{
 		width: width, height: height, state: StateLogs,
 		selNode: &node, logService: "apid", logStreaming: true,
-		logCh: make(chan string, 1),
+		logCh: make(chan string, 1), findInput: textinput.New(),
 	}
 	for i := 0; i < nLines; i++ {
 		app.logLines = append(app.logLines, fmt.Sprintf("line %d", i))
@@ -192,10 +193,9 @@ func TestLogWrapKeepsLineCountRight(t *testing.T) {
 	if app.logCur != 0 {
 		t.Fatalf("g: cursor %d", app.logCur)
 	}
-	app.findQuery = "abcdefghij"
-	app = lpress(app, "n")
-	if app.logCur != 1 {
-		t.Fatalf("find n: cursor %d, want logical line 1", app.logCur)
+	app = lpress(app, "/", "abcdefghij", "enter")
+	if p := app.logPaneFor(logKindService); p.n() != 1 || p.orig(p.cur) != 1 {
+		t.Fatalf("filter: %d visible, cursor on logical line %d, want 1 visible on line 1", p.n(), p.orig(p.cur))
 	}
 	// Off: cut with an ellipsis.
 	app = lpress(app, "w")
@@ -332,7 +332,7 @@ func TestLogFindHighlightSurvivesColour(t *testing.T) {
 
 	app := newLogsApp(120, 20, 2)
 	app.logLines[0] = "ERROR disk failed"
-	app.findQuery = "disk"
+	app.logFS = app.logFS.withText("disk", app.logLines)
 	app.logNoFollow = true
 	app.logCur = 1
 	row := app.renderLogLine(0, false, 5)[0]

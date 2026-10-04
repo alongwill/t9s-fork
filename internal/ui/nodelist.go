@@ -94,8 +94,11 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			return app, nil
 		}
 		app.selNode = n
-		app.dmesgLines = nil
-		app.dmesgCur = 0
+		app.dmesgLines, app.dmesgArrived = nil, nil
+		app.dmesgCur, app.dmesgTop, app.dmesgFrozenN = 0, 0, 0
+		app.dmesgNoFollow = false
+		app.dmesgFS = logFilterState{}
+		app.logFull = false
 		app.dmesgStreaming = true
 		app = app.goTo(StateDmesg)
 		app.dmesgCh = make(chan string, 500)

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -9,52 +8,59 @@ import (
 )
 
 func (app App) handleLogsKey(msg tea.KeyMsg) (App, tea.Cmd) {
+	return app.handleLogPaneKey(msg, logKindService)
+}
+
+// handleLogPaneKey is the key handling shared by the service logs and dmesg
+// views.
+func (app App) handleLogPaneKey(msg tea.KeyMsg, kind logKind) (App, tea.Cmd) {
 	if app.findActive {
-		prev := app.logCur
-		var cmd tea.Cmd
-		var cur int
-		app, cur, cmd = app.handleFindKey(msg, app.logLines, app.logCur)
-		if cur != prev {
-			app = app.logMove(cur)
-		}
-		return app, cmd
+		return app.handleFilterKey(msg, kind)
 	}
 
-	page := max(1, app.logRowsFor(app.logHeight())/2)
+	rows := app.logRowsFor(app.logHeight())
+	page := max(1, rows/2)
+	lay := app.logLayout()
+	p := app.logPaneFor(kind)
 
 	switch msg.String() {
 	case "ctrl+c":
 		app.cleanup()
 		return app, tea.Quit
 	case "esc", "q":
-		if app.findQuery != "" {
-			app.findQuery = ""
-			return app, nil
+		if p.fs.raw != "" {
+			p = p.setFilter("")
+			p.fs.prev = ""
+			return app.setLogPane(p), nil
 		}
 		if app.logFull {
 			app.logFull = false
 			return app, nil
 		}
-		app.stopLogs()
+		if kind == logKindDmesg {
+			app.stopDmesg()
+		} else {
+			app.stopLogs()
+		}
 		app = app.goBack()
 		return app, nil
 	case "up", "k":
-		app = app.logMove(app.logCur - 1)
+		app = app.setLogPane(p.move(lay, rows, p.cur-1))
 	case "down", "j":
-		app = app.logMove(app.logCur + 1)
+		app = app.setLogPane(p.move(lay, rows, p.cur+1))
 	case "pgup":
-		app = app.logMove(app.logCur - page)
+		app = app.setLogPane(p.move(lay, rows, p.cur-page))
 	case "pgdown":
-		app = app.logMove(app.logCur + page)
+		app = app.setLogPane(p.move(lay, rows, p.cur+page))
 	case "g", "home":
-		app = app.logMove(0)
+		app = app.setLogPane(p.move(lay, rows, 0))
 	case "G", "end":
-		app = app.logResume()
+		app = app.setLogPane(p.resume())
 	case "s":
-		if app.logNoFollow {
-			app = app.logResume()
+		if p.noFollow {
+			app = app.setLogPane(p.resume())
 		} else {
-			app = app.logFreeze()
+			app = app.setLogPane(p.freeze(lay, rows))
 		}
 	case "f":
 		app.logFull = !app.logFull
@@ -63,65 +69,41 @@ func (app App) handleLogsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 	case "w":
 		app.logWrap = !app.logWrap
 	case "/":
+		p.fs.prev = p.fs.raw
+		app = app.setLogPane(p)
 		app.findActive = true
-		app.findInput.SetValue("")
+		app.findInput.SetValue(p.fs.raw)
+		app.findInput.CursorEnd()
 		return app, app.findInput.Focus()
 	case "n":
-		if app.findQuery != "" {
-			if idx := findLineNext(app.logLines, app.logCur+1, app.findQuery); idx >= 0 {
-				app = app.logMove(idx)
-			}
-		}
+		app = app.setLogPane(p.step(lay, rows, 1))
 	case "N":
-		if app.findQuery != "" {
-			if idx := findLinePrev(app.logLines, app.logCur-1, app.findQuery); idx >= 0 {
-				app = app.logMove(idx)
-			}
-		}
+		app = app.setLogPane(p.step(lay, rows, -1))
 	}
 	return app, nil
 }
 
-// handleFindKey routes keypresses while the find bar is open.
-// Returns (updated app, updated cursor, cmd).
-func (app App) handleFindKey(msg tea.KeyMsg, lines []string, cur int) (App, int, tea.Cmd) {
+// handleFilterKey routes keypresses while the filter prompt is open. The
+// filter applies live: every keystroke narrows the view. enter keeps it, esc
+// restores the filter the prompt opened with.
+func (app App) handleFilterKey(msg tea.KeyMsg, kind logKind) (App, tea.Cmd) {
+	p := app.logPaneFor(kind)
 	switch msg.String() {
 	case "ctrl+c":
 		app.cleanup()
-		return app, cur, tea.Quit
+		return app, tea.Quit
 	case "esc":
 		app.findActive = false
 		app.findInput.Blur()
-		return app, cur, nil
+		return app.setLogPane(p.setFilter(p.fs.prev)), nil
 	case "enter":
-		q := strings.TrimSpace(app.findInput.Value())
 		app.findActive = false
 		app.findInput.Blur()
-		if q != "" {
-			app.findQuery = q
-			if idx := findLineNext(lines, cur, q); idx >= 0 {
-				cur = idx
-			}
-		}
-		return app, cur, nil
-	default:
-		var cmd tea.Cmd
-		app.findInput, cmd = app.findInput.Update(msg)
-		return app, cur, cmd
+		return app, nil
 	}
-}
-
-// renderFindBar returns a one-line bar shown at the bottom of log/dmesg views.
-func (app App) renderFindBar(lines []string) string {
-	if app.findActive {
-		return keyStyle.Render("/") + " " + app.findInput.View() + "\n"
-	}
-	if app.findQuery != "" {
-		n := countMatches(lines, app.findQuery)
-		hint := dimStyle.Render(fmt.Sprintf("  /%s  %d match(es)  n/N: next/prev  Esc: clear", app.findQuery, n))
-		return hint + "\n"
-	}
-	return ""
+	var cmd tea.Cmd
+	app.findInput, cmd = app.findInput.Update(msg)
+	return app.setLogPane(p.setFilter(app.findInput.Value())), cmd
 }
 
 // findLineNext returns the index of the next line containing q, starting at

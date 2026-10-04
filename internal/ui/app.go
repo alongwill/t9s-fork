@@ -101,6 +101,7 @@ type App struct {
 	logFull       bool        // FullScreen
 	logTS         bool        // Timestamps
 	logWrap       bool        // Wrap
+	logFS         logFilterState
 	runLogStream  func(context.Context, string, string, chan<- string)
 	// runContainerLogStream follows a container's logs: node, namespace, ID.
 	runContainerLogStream func(context.Context, string, string, string, chan<- string)
@@ -134,6 +135,11 @@ type App struct {
 	dmesgCancel    context.CancelFunc
 	dmesgVP        viewport.Model
 	dmesgStreaming bool
+	dmesgArrived   []time.Time
+	dmesgNoFollow  bool
+	dmesgFrozenN   int
+	dmesgTop       int
+	dmesgFS        logFilterState
 
 	// Metrics
 	stats        []talos.StatsResult
@@ -663,11 +669,10 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case logLineMsg:
 		if app.logStreaming && msg.sessionSeq == app.logSessionSeq {
-			app.logLines = append(app.logLines, msg.line)
-			app.logArrived = append(app.logArrived, time.Now())
-			if !app.logNoFollow {
-				app.logCur = len(app.logLines) - 1
-			}
+			p := app.logPaneFor(logKindService)
+			p.lines = append(p.lines, msg.line)
+			p.arrived = append(p.arrived, time.Now())
+			app = app.setLogPane(p.appended())
 			return app, waitForLine(app.logCh, msg.sessionSeq)
 		}
 		return app, nil
@@ -681,11 +686,10 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case dmesgLineMsg:
 		if app.dmesgStreaming {
-			wasAtLast := len(app.dmesgLines) == 0 || app.dmesgCur >= len(app.dmesgLines)-1
-			app.dmesgLines = append(app.dmesgLines, string(msg))
-			if wasAtLast {
-				app.dmesgCur = len(app.dmesgLines) - 1
-			}
+			p := app.logPaneFor(logKindDmesg)
+			p.lines = append(p.lines, string(msg))
+			p.arrived = append(p.arrived, time.Now())
+			app = app.setLogPane(p.appended())
 			return app, waitForDmesgLine(app.dmesgCh)
 		}
 		return app, nil
@@ -763,7 +767,7 @@ func (app App) View() string {
 		return "Initializing t9s..."
 	}
 
-	if app.state == StateLogs && app.logFull {
+	if (app.state == StateLogs || app.state == StateDmesg) && app.logFull {
 		return app.viewFullScreenLogs()
 	}
 
@@ -791,7 +795,7 @@ func (app App) View() string {
 // viewFullScreenLogs renders the logs over the whole terminal: no header,
 // hints or footer.
 func (app App) viewFullScreenLogs() string {
-	lines := strings.Split(strings.TrimSuffix(app.renderLogs(app.height), "\n"), "\n")
+	lines := strings.Split(strings.TrimSuffix(app.renderMain(app.height), "\n"), "\n")
 	if len(lines) > app.height {
 		lines = lines[:app.height]
 	}

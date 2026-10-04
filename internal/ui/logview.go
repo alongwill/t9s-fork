@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -133,10 +132,11 @@ func (app App) logHeight() int {
 }
 
 // logRowsFor is the number of rows left for log lines in a view height: the
-// title, indicator and (when open) find bar come off the top and bottom.
+// title, indicator and (when open) the filter prompt come off the top and
+// bottom.
 func (app App) logRowsFor(height int) int {
 	fb := 0
-	if app.findActive || app.findQuery != "" {
+	if app.findActive {
 		fb = 1
 	}
 	return max(1, height-3-fb)
@@ -144,49 +144,22 @@ func (app App) logRowsFor(height int) int {
 
 // logFreeze stops autoscroll, keeping the viewport where it is.
 func (app App) logFreeze() App {
-	if app.logNoFollow {
-		return app
-	}
-	n := len(app.logLines)
-	app.logTop = app.logLayout().topFor(app.logLines, n-1, app.logRowsFor(app.logHeight()))
-	app.logNoFollow = true
-	app.logFrozenN = n
-	return app
+	return app.setLogPane(app.activeLog().freeze(app.logLayout(), app.logRowsFor(app.logHeight())))
 }
 
 // logResume turns autoscroll back on and jumps to the tail.
 func (app App) logResume() App {
-	app.logNoFollow = false
-	app.logFrozenN = 0
-	app.logCur = max(0, len(app.logLines)-1)
-	return app
+	return app.setLogPane(app.activeLog().resume())
 }
 
-// logMove puts the cursor on line idx. Anywhere but the tail turns autoscroll
-// off, as in k9s.
+// logMove puts the cursor on visible line idx. Anywhere but the tail turns
+// autoscroll off, as in k9s.
 func (app App) logMove(idx int) App {
-	n := len(app.logLines)
-	if n == 0 {
-		return app
-	}
-	idx = min(max(idx, 0), n-1)
-	if !app.logNoFollow && idx == n-1 {
-		app.logCur = idx
-		return app
-	}
-	app = app.logFreeze()
-	app.logCur = idx
-	app.logTop = app.logLayout().ensureVisible(app.logLines, app.logTop, idx, app.logRowsFor(app.logHeight()))
-	return app
+	return app.setLogPane(app.activeLog().move(app.logLayout(), app.logRowsFor(app.logHeight()), idx))
 }
 
 // logNewCount is the number of lines that arrived while autoscroll is off.
-func (app App) logNewCount() int {
-	if !app.logNoFollow {
-		return 0
-	}
-	return max(0, len(app.logLines)-app.logFrozenN)
-}
+func (app App) logNewCount() int { return app.activeLog().newCount() }
 
 func onOff(label string, on bool) string {
 	v := dimStyle.Render("Off")
@@ -197,26 +170,28 @@ func onOff(label string, on bool) string {
 }
 
 // logIndicator is the k9s style state line under the logs title.
-func (app App) logIndicator() string {
+func (app App) logIndicator() string { return app.paneIndicator(app.activeLog()) }
+
+func (app App) paneIndicator(p logPane) string {
 	parts := []string{
-		onOff("Autoscroll", !app.logNoFollow),
+		onOff("Autoscroll", !p.noFollow),
 		onOff("FullScreen", app.logFull),
 		onOff("Timestamps", app.logTS),
 		onOff("Wrap", app.logWrap),
 	}
 	s := "  " + strings.Join(parts, "     ")
-	if n := app.logNewCount(); n > 0 {
+	if n := p.newCount(); n > 0 {
 		s += "     " + warnStyle.Render(fmt.Sprintf("+%d new", n))
 	}
-	return lipgloss.NewStyle().MaxWidth(max(1, app.width)).Render(s)
-}
-
-// logArrival returns when line i arrived (zero when unknown).
-func (app App) logArrival(i int) time.Time {
-	if i < len(app.logArrived) {
-		return app.logArrived[i]
+	if p.fs.f.set {
+		s += "     " + dimStyle.Render("Filter:") + keyStyle.Render(p.fs.raw)
+		if p.fs.f.invalid {
+			s += " " + warnStyle.Render("(invalid regex)")
+		} else {
+			s += dimStyle.Render(fmt.Sprintf(" (%d/%d)", p.n(), len(p.lines)))
+		}
 	}
-	return time.Time{}
+	return lipgloss.NewStyle().MaxWidth(max(1, app.width)).Render(s)
 }
 
 // styledLine is a plain log line with its colour spans resolved per rune.
@@ -229,12 +204,18 @@ type styledLine struct {
 // newStyledLine resolves the colour spans of plain; find, when set, adds the
 // find highlight on top of them.
 func newStyledLine(plain, find string) styledLine {
-	rs := []rune(plain)
 	spans, dim := logSpans(plain)
+	return buildStyledLine(plain, spans, dim, findSpans(plain, find))
+}
+
+// buildStyledLine lays the colour spans of a line, then the highlight spans on
+// top of them, over its runes. A dim line drops the colour spans.
+func buildStyledLine(plain string, spans []logSpan, dim bool, highlight []logSpan) styledLine {
+	rs := []rune(plain)
 	if dim {
 		spans = nil
 	}
-	spans = append(spans, findSpans(plain, find)...)
+	spans = append(append([]logSpan(nil), spans...), highlight...)
 	kinds := make([]int, len(rs))
 	for j := range kinds {
 		kinds[j] = -1
@@ -273,11 +254,37 @@ func (sl styledLine) segment(from, to int, selected bool) string {
 	return sb.String()
 }
 
-// renderLogLine renders one logical line as terminal rows.
+// styleLine resolves the colours of visible line i of the pane: the stream's
+// own level/timestamp colouring, then the filter highlight.
+func (p logPane) styleLine(plain string) styledLine {
+	var spans []logSpan
+	var dim bool
+	if p.kind == logKindDmesg {
+		spans, dim = dmesgSpans(plain)
+	} else {
+		spans, dim = logSpans(plain)
+	}
+	return buildStyledLine(plain, spans, dim, p.fs.f.spans(plain))
+}
+
+// timestamp is the Timestamps prefix of visible line i.
+func (p logPane) timestamp(plain string, i int) string {
+	if p.kind == logKindDmesg {
+		return dmesgTimestamp(plain, p.arrival(i))
+	}
+	return logTimestamp(plain, p.arrival(i))
+}
+
+// renderLogLine renders one logical line of the current view as terminal rows.
 func (app App) renderLogLine(i int, selected bool, maxRows int) []string {
+	return app.renderPaneLine(app.activeLog(), i, selected, maxRows)
+}
+
+// renderPaneLine renders visible line i of p as terminal rows.
+func (app App) renderPaneLine(p logPane, i int, selected bool, maxRows int) []string {
 	lay := app.logLayout()
-	plain := plainLogLine(app.logLines[i])
-	sl := newStyledLine(plain, app.findQuery)
+	plain := plainLogLine(p.line(i))
+	sl := p.styleLine(plain)
 
 	ranges, cut := lay.chunks(sl.rs)
 	if len(ranges) > maxRows {
@@ -285,7 +292,7 @@ func (app App) renderLogLine(i int, selected bool, maxRows int) []string {
 	}
 	prefix := ""
 	if app.logTS {
-		prefix = logTimestamp(plain, app.logArrival(i))
+		prefix = p.timestamp(plain, i)
 	}
 	out := make([]string, 0, len(ranges))
 	for k, r := range ranges {
@@ -319,8 +326,7 @@ func (app App) renderLogLine(i int, selected bool, maxRows int) []string {
 	return out
 }
 
-// renderLogs renders the logs view: title, indicator line, the lines, and the
-// find bar.
+// renderLogs renders the service logs view.
 func (app App) renderLogs(height int) string {
 	node := ""
 	if app.selNode != nil {
@@ -335,33 +341,54 @@ func (app App) renderLogs(height int) string {
 		titleStyle.Render(node),
 		streaming,
 	)
-	head := title + app.logIndicator() + "\n"
+	return app.renderLogPane(app.logPaneFor(logKindService), title, "Waiting for logs…", height)
+}
 
-	if len(app.logLines) == 0 {
-		return head + "  " + infoStyle.Render("Waiting for logs…")
+// renderLogPane renders a log pane: title, indicator line, the visible lines
+// and the filter prompt. It is shared by the service logs and dmesg views.
+func (app App) renderLogPane(p logPane, title, waiting string, height int) string {
+	head := title + app.paneIndicator(p) + "\n"
+
+	if len(p.lines) == 0 {
+		if bar := app.renderFilterBar(); bar != "" {
+			return head + "  " + infoStyle.Render(waiting) + "\n" + bar
+		}
+		return head + "  " + infoStyle.Render(waiting)
+	}
+	n := p.n()
+	if n == 0 {
+		return head + "  " + dimStyle.Render(fmt.Sprintf("No lines match (0/%d)", len(p.lines))) + "\n" + app.renderFilterBar()
 	}
 
 	maxRows := app.logRowsFor(height)
 	lay := app.logLayout()
-	n := len(app.logLines)
-	cur := min(max(app.logCur, 0), n-1)
+	lines := p.text()
+	cur := min(max(p.cur, 0), n-1)
 	var top int
-	if app.logNoFollow {
-		top = lay.ensureVisible(app.logLines, app.logTop, cur, maxRows)
+	if p.noFollow {
+		top = lay.ensureVisible(lines, p.top, cur, maxRows)
 	} else {
 		cur = n - 1
-		top = lay.topFor(app.logLines, n-1, maxRows)
+		top = lay.topFor(lines, n-1, maxRows)
 	}
 
 	var sb strings.Builder
 	sb.WriteString(head)
 	used := 0
 	for i := top; i < n && used < maxRows; i++ {
-		for _, row := range app.renderLogLine(i, i == cur, maxRows-used) {
+		for _, row := range app.renderPaneLine(p, i, i == cur, maxRows-used) {
 			sb.WriteString(row)
 			sb.WriteByte('\n')
 			used++
 		}
 	}
-	return sb.String() + app.renderFindBar(app.logLines)
+	return sb.String() + app.renderFilterBar()
+}
+
+// renderFilterBar is the prompt line shown while the filter is being typed.
+func (app App) renderFilterBar() string {
+	if !app.findActive {
+		return ""
+	}
+	return keyStyle.Render("/") + " " + app.findInput.View() + "\n"
 }

@@ -116,6 +116,7 @@ func (app App) startLogRun(target string, run func(context.Context, string, stri
 	app.logNoFollow = false
 	app.logFrozenN = 0
 	app.logTop = 0
+	app.logFS = logFilterState{}
 	app.logFull = false
 	app.logStreaming = true
 	app = app.goTo(StateLogs)

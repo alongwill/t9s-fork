@@ -333,7 +333,7 @@ func (c *Client) StreamDmesg(ctx context.Context, node string, ch chan<- string)
 		case <-ctx.Done():
 			cmd.Process.Kill() //nolint:errcheck
 			return
-		case ch <- scanner.Text():
+		case ch <- StripNodePrefix(node, scanner.Text()):
 		}
 	}
 	cmd.Wait() //nolint:errcheck
