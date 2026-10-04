@@ -22,7 +22,12 @@ func (app App) handleHelpKey(msg tea.KeyMsg) (App, tea.Cmd) {
 	}
 }
 
-func buildHelpContent() string {
+// buildHelpContent renders the help of a default (read-only) app.
+func buildHelpContent() string { return buildHelpContentFor(App{}) }
+
+// buildHelpContentFor renders the help overlay. Keys that change a cluster are
+// listed only in write mode (k9s ClearDanger).
+func buildHelpContentFor(app App) string {
 	k := keyStyle.Render
 	d := dimStyle.Render
 	h := titleStyle.Render
@@ -37,6 +42,9 @@ func buildHelpContent() string {
 	}
 
 	var sb strings.Builder
+
+	sb.WriteString(app.helpStatusSection(section))
+	sb.WriteByte('\n')
 
 	sb.WriteString(section("Global", [][2]string{
 		{"?", "Toggle this help"},
@@ -65,12 +73,16 @@ func buildHelpContent() string {
 		{"N", "Network view (tree from the NIC up, HTML diagram)"},
 		{"i", "Disks: partition bars per disk"},
 		{"H", "Cluster health"},
-		{"R", "Reboot node"},
-		{"S", "Shutdown node"},
-		{"U", "Upgrade Talos"},
-		{"K", "Upgrade Kubernetes"},
 		{"r", "Refresh nodes"},
 	}))
+	if app.writeMode {
+		sb.WriteString(section("Node List: write mode (--write)", [][2]string{
+			{"R", "Reboot node"},
+			{"S", "Shutdown node"},
+			{"U", "Upgrade Talos"},
+			{"K", "Upgrade Kubernetes"},
+		}))
+	}
 	sb.WriteByte('\n')
 
 	sb.WriteString(browserHelp(section))
@@ -123,12 +135,16 @@ func buildHelpContent() string {
 	}))
 	sb.WriteByte('\n')
 
-	sb.WriteString(section("Machine Config / Health", [][2]string{
+	mcRows := [][2]string{
 		{"↑↓", "Scroll"},
 		{"g", "Go to top"},
 		{"G", "Go to bottom"},
 		{"Esc / q", "Back"},
-	}))
+	}
+	if app.writeMode {
+		mcRows = append(mcRows, [2]string{"e", "Edit and apply the machine config (write mode)"})
+	}
+	sb.WriteString(section("Machine Config / Health", mcRows))
 	sb.WriteByte('\n')
 
 	sb.WriteString(section("Containers", [][2]string{
@@ -160,14 +176,16 @@ func buildHelpContent() string {
 	}))
 	sb.WriteByte('\n')
 
-	sb.WriteString(section("Upgrade", [][2]string{
-		{"type", "Enter image / version"},
-		{"tab", "Toggle --drain (--preserve on old talosctl)"},
-		{"↵", "Confirm"},
-		{"y / n", "Yes / No on confirm step"},
-		{"Esc", "Abort / back"},
-	}))
-	sb.WriteByte('\n')
+	if app.writeMode {
+		sb.WriteString(section("Upgrade (write mode)", [][2]string{
+			{"type", "Enter image / version"},
+			{"tab", "Toggle --drain (--preserve on old CLI)"},
+			{"↵", "Confirm"},
+			{"y / n", "Yes / No on confirm step"},
+			{"Esc", "Abort / back"},
+		}))
+		sb.WriteByte('\n')
+	}
 
 	sb.WriteString(section("Context Switcher", [][2]string{
 		{"↑↓ / j k", "Navigate"},
@@ -185,7 +203,7 @@ func (app App) renderHelpView(height int) string {
 	app.helpVP.Height = height
 	app.helpVP.Width = app.width
 	if app.helpVP.TotalLineCount() == 0 {
-		app.helpVP.SetContent(buildHelpContent())
+		app.helpVP.SetContent(buildHelpContentFor(app))
 	}
 	return app.helpVP.View()
 }

@@ -21,7 +21,8 @@ type Client struct {
 	Context    string
 
 	mu          sync.Mutex
-	clientMinor int // talosctl minor version, -1 until known
+	clientMinor int  // talosctl minor version, -1 until known
+	writable    bool // false (default): mutating methods return ErrReadOnly
 }
 
 func New(configPath, ctx string) *Client {
@@ -347,6 +348,9 @@ type UpgradeOptions struct {
 }
 
 func (c *Client) UpgradeTalos(ctx context.Context, node string, opts UpgradeOptions, ch chan<- string) error {
+	if err := c.refuseWrite(); err != nil {
+		return err
+	}
 	args := append(c.baseArgs(), upgradeArgs(node, opts, c.ModernCLI())...)
 	return c.runStreaming(ctx, ch, args...)
 }
@@ -368,6 +372,9 @@ func upgradeArgs(node string, opts UpgradeOptions, modern bool) []string {
 // UpgradeK8s runs `talosctl upgrade-k8s`. talosctl 1.14 requires exactly one
 // (controlplane) node.
 func (c *Client) UpgradeK8s(ctx context.Context, node, version string, ch chan<- string) error {
+	if err := c.refuseWrite(); err != nil {
+		return err
+	}
 	cmdArgs := append(c.baseArgs(), "upgrade-k8s", "--to", version)
 	if node != "" {
 		cmdArgs = append(cmdArgs, "-n", node)
@@ -487,6 +494,9 @@ func parseExtensionCatalog(data []byte) ([]CatalogExtension, error) {
 // --- Node actions ---
 
 func (c *Client) Reboot(ctx context.Context, node string) error {
+	if err := c.refuseWrite(); err != nil {
+		return err
+	}
 	// --wait=false sends the request and returns immediately.
 	// Default (--wait=true) would wait for the node to come back up,
 	// which exceeds any reasonable timeout and always returns an error.
@@ -495,6 +505,9 @@ func (c *Client) Reboot(ctx context.Context, node string) error {
 }
 
 func (c *Client) Shutdown(ctx context.Context, node string) error {
+	if err := c.refuseWrite(); err != nil {
+		return err
+	}
 	_, err := c.run(ctx, "shutdown", "-n", node, "--wait=false")
 	return err
 }
@@ -793,6 +806,9 @@ func ParseMounts(out string) []MountUsage {
 // ApplyConfig applies a full machine config file using talosctl apply-config.
 // Mode "auto" picks the least disruptive method (no reboot if not required).
 func (c *Client) ApplyConfig(ctx context.Context, node, file string) error {
+	if err := c.refuseWrite(); err != nil {
+		return err
+	}
 	args := append(c.baseArgs(),
 		"apply-config",
 		"-n", node,
@@ -809,6 +825,9 @@ func (c *Client) ApplyConfig(ctx context.Context, node, file string) error {
 // PatchMachineConfig applies a strategic merge patch to the machine config.
 // The patch file should contain only the fields to change (e.g. machine: section).
 func (c *Client) PatchMachineConfig(ctx context.Context, node, file string) error {
+	if err := c.refuseWrite(); err != nil {
+		return err
+	}
 	args := append(c.baseArgs(),
 		"patch", "machineconfig",
 		"-n", node,

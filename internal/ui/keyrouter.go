@@ -25,6 +25,9 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		case "y":
 			action := app.pendingAction
 			app.pendingAction = ""
+			if a, blocked := app.refuseDangerous(action); blocked {
+				return a, nil
+			}
 			if action == "reboot" {
 				return app, app.execReboot()
 			}
@@ -46,7 +49,7 @@ func (app App) handleKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		app.state != StateUpgradeTalos &&
 		app.state != StateUpgradeK8s &&
 		!app.upgradeRunning {
-		app.helpVP.SetContent(buildHelpContent())
+		app.helpVP.SetContent(buildHelpContentFor(app))
 		app.helpVP.GotoTop()
 		app = app.goTo(StateHelp)
 		return app, nil

@@ -214,6 +214,10 @@ type App struct {
 	dmesgCur  int
 	healthCur int
 
+	// writeMode is false by default: mutating actions are hidden and refused
+	// (--write turns it on, see WithWrite).
+	writeMode bool
+
 	// Resource browser (a on the node list)
 	browser           browser
 	resourceDefs      map[string][]talos.ResourceDef // node IP → cached `get rd`
@@ -831,7 +835,7 @@ func (app App) renderHeader() string {
 	sep := headerSepStyle.Render("│")
 	ctxPart := headerStyle.Render(" ctx: " + ctx + " ")
 
-	left := logo + sep + ctxPart
+	left := logo + sep + app.modeBadge() + sep + ctxPart
 	if app.selNode != nil {
 		left += sep + headerStyle.Render(" "+app.selNode.Hostname+" ("+app.selNode.IP+") ")
 	}

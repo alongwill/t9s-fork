@@ -247,7 +247,7 @@ func (app App) runCommand(text string) (App, tea.Cmd) {
 		app.cleanup()
 		return app, tea.Quit
 	case "?", "h", "help":
-		app.helpVP.SetContent(buildHelpContent())
+		app.helpVP.SetContent(buildHelpContentFor(app))
 		app.helpVP.GotoTop()
 		return app.goTo(StateHelp), nil
 	}

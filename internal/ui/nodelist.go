@@ -123,6 +123,9 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app, app.loadStats()
 
 	case "U":
+		if a, blocked := app.refuseDangerous("upgrade-talos"); blocked {
+			return a, nil
+		}
 		n := app.selectedNode()
 		if n == nil {
 			return app, nil
@@ -143,6 +146,9 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app, app.upgradeInput.Focus()
 
 	case "K":
+		if a, blocked := app.refuseDangerous("upgrade-k8s"); blocked {
+			return a, nil
+		}
 		n := app.selectedNode()
 		if n == nil {
 			return app, nil
@@ -244,6 +250,9 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app, cmd
 
 	case "R":
+		if a, blocked := app.refuseDangerous("reboot"); blocked {
+			return a, nil
+		}
 		n := app.selectedNode()
 		if n == nil {
 			return app, nil
@@ -254,6 +263,9 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		return app, nil
 
 	case "S":
+		if a, blocked := app.refuseDangerous("shutdown"); blocked {
+			return a, nil
+		}
 		n := app.selectedNode()
 		if n == nil {
 			return app, nil
