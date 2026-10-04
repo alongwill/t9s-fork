@@ -42,14 +42,10 @@ func (app App) renderMetrics(height int) string {
 			warnStyle.Render("No stats available."))
 	}
 
-	const (
-		colID  = 36
-		colCPU = 8
-		colMem = 10
-	)
+	colID, colNS, colCPU, _ := metricsWidths(app.width)
 
 	hdr := colHeaderStyle.Render(
-		"  " + col("CONTAINER", colID) + "  " + col("CPU%", colCPU) + "  " + "MEMORY",
+		"  " + col("CONTAINER", colID) + "  " + col("NAMESPACE", colNS) + "  " + col("CPU%", colCPU) + "  " + "MEMORY",
 	)
 
 	var sb strings.Builder
@@ -88,9 +84,11 @@ func (app App) renderMetrics(height int) string {
 
 		memStr := formatMem(s.MemoryMB)
 
+		ns, name := splitMetricsID(s.ID)
 		row := "  " +
-			col(truncate(s.ID, colID), colID) + "  " +
-			col(cpuStr, colCPU) + "  " +
+			col(truncate(name, colID), colID) + "  " +
+			col(truncate(ns, colNS), colNS) + "  " +
+			padRight(cpuStr, colCPU) + "  " +
 			memStr
 
 		sb.WriteString(row)
@@ -102,6 +100,27 @@ func (app App) renderMetrics(height int) string {
 	}
 
 	return sb.String()
+}
+
+// metricsWidths gives the column widths for a terminal width: the namespace,
+// CPU and memory columns are fixed, the container column takes the rest
+// (at least 20, at most 60). At 80 columns the container name gets 40.
+func metricsWidths(width int) (id, ns, cpu, mem int) {
+	ns, cpu, mem = 16, 8, 10
+	id = min(60, max(20, width-2-(2+ns)-(2+cpu)-(2+mem)))
+	return id, ns, cpu, mem
+}
+
+// splitMetricsID splits a stats ID into the pod namespace and the name shown
+// in the container column. A CRI ID "ns/pod:name:id12" gives ("ns",
+// "pod:name:id12"): the namespace has its own column, so it is not repeated.
+// Talos system containers ("apid") have no pod namespace and give ("-", id).
+func splitMetricsID(id string) (ns, name string) {
+	c := talos.ParseCRIID(id)
+	if !c.CRI {
+		return "-", id
+	}
+	return c.Namespace, strings.TrimPrefix(id, c.Namespace+"/")
 }
 
 func formatMem(mb float64) string {
