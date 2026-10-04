@@ -267,9 +267,14 @@ func Build(in Inputs) Model {
 					ID: vs.ID, Type: str(vsp, "type"), Phase: str(vsp, "phase"), Error: str(vsp, "errorMessage"),
 					Location: str(vsp, "location"), Ref: Ref{Type: TypeVolume, Namespace: vs.Namespace, ID: vs.ID},
 				}
-				seg.Mount = str(vsp, "mountLocation")
-				if seg.Mount == "" {
-					seg.Mount = str(sub(vsp, "mountSpec"), "targetPath")
+				// mountSpec.targetPath is the mount point (/var); mountLocation is
+				// the device for partitions (/dev/vda4)
+				seg.Mount = str(sub(vsp, "mountSpec"), "targetPath")
+				if !strings.HasPrefix(seg.Mount, "/") {
+					seg.Mount = ""
+					if ml := str(vsp, "mountLocation"); strings.HasPrefix(ml, "/") && !strings.HasPrefix(ml, "/dev/") {
+						seg.Mount = ml
+					}
 				}
 				seg.Volume.Mount = seg.Mount
 				if p := str(vsp, "encryptionProvider"); p != "" && p != "none" {
@@ -298,10 +303,14 @@ func Build(in Inputs) Model {
 			default:
 				seg.Label = "partition " + strconv.Itoa(seg.Index)
 			}
-			if seg.Mount != "" && in.Usage != nil {
-				if u, ok := in.Usage[seg.Mount]; ok && u.Size > 0 {
-					uu := u
-					seg.Usage = &uu
+			if in.Usage != nil {
+				// by mount point, else by the device the mounts table names
+				for _, key := range []string{seg.Mount, x.dev} {
+					if u, ok := in.Usage[key]; ok && key != "" && u.Size > 0 {
+						uu := u
+						seg.Usage = &uu
+						break
+					}
 				}
 			}
 			return seg

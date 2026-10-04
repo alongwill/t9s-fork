@@ -48,7 +48,7 @@ func TestLayoutWidths(t *testing.T) {
 	}
 }
 
-func TestSegCellsAreExactlyWide(t *testing.T) {
+func TestSegCellsAreExactlyWideAndTextFree(t *testing.T) {
 	segs := []diskmodel.Segment{
 		{Role: diskmodel.RoleEphemeral, Label: "EPHEMERAL", FS: "xfs", Size: 100, Usage: &diskmodel.Usage{Size: 100, Used: 61}},
 		{Role: diskmodel.RoleUser, Label: "u-data", FS: "xfs", Encrypted: true, Size: 100},
@@ -59,26 +59,68 @@ func TestSegCellsAreExactlyWide(t *testing.T) {
 	for _, s := range segs {
 		for w := 1; w <= 60; w++ {
 			for _, sel := range []bool{false, true} {
-				if got := ansi.StringWidth(segCells(s, w, sel, false, false)); got != w {
+				out := segCells(s, w, sel)
+				if got := ansi.StringWidth(out); got != w {
 					t.Fatalf("%s w=%d sel=%v: %d cells", s.Label, w, sel, got)
+				}
+				if plain := ansi.Strip(out); strings.ContainsAny(plain, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%") {
+					t.Fatalf("text over the bar: %q", plain)
 				}
 			}
 		}
 	}
-	// the label shows when it fits, with usage in the used part
-	out := ansi.Strip(segCells(segs[0], 30, false, false, false))
-	if !strings.Contains(out, "EPHEMERAL xfs 61%") || !strings.Contains(out, "▓") || !strings.Contains(out, "░") {
-		t.Errorf("EPHEMERAL = %q", out)
+	// used / free split inside a filesystem; unknown usage is solid; unallocated is dotted
+	if out := ansi.Strip(segCells(segs[0], 10, false)); out != "▓▓▓▓▓▓░░░░" {
+		t.Errorf("61%% of 10 cells = %q", out)
 	}
-	if out := ansi.Strip(segCells(segs[1], 30, false, false, false)); !strings.Contains(out, "u-data xfs lock") {
-		t.Errorf("encrypted volume lacks the lock badge: %q", out)
+	if out := ansi.Strip(segCells(segs[1], 4, false)); out != "████" {
+		t.Errorf("unknown usage = %q", out)
 	}
-	if out := ansi.Strip(segCells(segs[3], 40, false, true, false)); !strings.Contains(out, "not used by Talos") {
-		t.Errorf("unused disk = %q", out)
+	if out := ansi.Strip(segCells(segs[3], 6, false)); out != "· · ·" && out != "· · · " {
+		t.Errorf("unallocated = %q", out)
 	}
-	// too narrow for the label: no text, still the right width
-	if out := ansi.Strip(segCells(segs[0], 3, false, false, false)); strings.Contains(out, "EPH") {
-		t.Errorf("3 cells cannot hold a label: %q", out)
+}
+
+func TestLegendUnderTheBar(t *testing.T) {
+	m := diskmodel.Build(diskmodel.Fixture("qemu-vm"))
+	vda := m.Disks[0]
+	for _, d := range m.Disks {
+		if d.ID == "vda" {
+			vda = d
+		}
+	}
+	lines := legendLines(vda, -1, false, 120)
+	if len(lines) != 1 {
+		t.Fatalf("legend lines = %d: %q", len(lines), lines)
+	}
+	plain := ansi.Strip(lines[0])
+	for _, want := range []string{"● EFI vfat 100MiB", "● META 1MiB", "● STATE xfs 100MiB", "● EPHEMERAL xfs 7.8GiB"} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("%q missing from %q", want, plain)
+		}
+	}
+	// it wraps at the width instead of overflowing
+	narrow := legendLines(vda, -1, false, 30)
+	if len(narrow) < 2 {
+		t.Fatalf("a 30-cell legend should wrap: %q", narrow)
+	}
+	for _, l := range narrow {
+		if w := ansi.StringWidth(l); w > 30 {
+			t.Errorf("legend line is %d cells: %q", w, ansi.Strip(l))
+		}
+	}
+	// the selected entry is marked; decimal units follow u
+	if !strings.Contains(strings.Join(legendLines(vda, 2, true, 120), ""), "104.9MB") {
+		t.Error("decimal units should read 104.9MB")
+	}
+	// the dot carries the segment colour: two roles, two styles
+	if legendLines(vda, -1, false, 120)[0] == "" {
+		t.Error("empty legend")
+	}
+	for in, want := range map[uint64]string{diskmodel.MiB: "1MiB", 1500 * diskmodel.MiB: "1.5GiB", 100 * diskmodel.GiB: "100GiB"} {
+		if got := fmtUnit(in, false); got != want {
+			t.Errorf("fmtUnit(%d) = %q, want %q", in, got, want)
+		}
 	}
 }
 
@@ -123,9 +165,10 @@ func TestFmtSize(t *testing.T) {
 
 func TestDiskRendersEachFixture(t *testing.T) {
 	cases := map[string][]string{
-		"single-disk-cp":   {"sda", "★ system", "Samsung 870 EVO", "EPHEMERAL", "3 disks"[:0] + "1 disk", "1 system", "2 hidden"},
-		"worker-encrypted": {"nvme0n1", "u-data xfs lock", "unallocated", "not used by Talos", "dm-0", "crypt", "u-scratch waiting"},
-		"whole-disk-fs":    {"vdb", "u-scratch", "not used by Talos", "200.0 GiB"},
+		"single-disk-cp":   {"sda", "★ system", "Samsung 870 EVO", "● EPHEMERAL xfs", "1 disk", "1 system", "2 hidden"},
+		"worker-encrypted": {"nvme0n1", "u-data xfs 900GiB lock", "unallocated", "not used by Talos", "dm-0", "crypt", "u-scratch waiting"},
+		"qemu-vm":          {"vda", "virtio", "● EFI vfat 100MiB", "● META 1MiB", "● STATE xfs 100MiB", "● EPHEMERAL xfs 7.8GiB"},
+		"whole-disk-fs":    {"vdb", "u-scratch xfs 200GiB", "not used by Talos 100GiB"},
 	}
 	for name, wants := range cases {
 		t.Run(name, func(t *testing.T) {

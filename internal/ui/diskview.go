@@ -102,7 +102,11 @@ func (app App) usageFunc() diskmodel.UsageFunc {
 		}
 		out := make(map[string]diskmodel.Usage, len(ms))
 		for _, m := range ms {
-			out[m.MountedOn] = diskmodel.Usage{Size: m.Size, Used: m.Used, Avail: m.Avail}
+			u := diskmodel.Usage{Size: m.Size, Used: m.Used, Avail: m.Avail}
+			out[m.MountedOn] = u
+			if _, dup := out[m.Filesystem]; strings.HasPrefix(m.Filesystem, "/dev/") && !dup {
+				out[m.Filesystem] = u // first mount of a device wins (/var, not its bind mounts)
+			}
 		}
 		return out, nil
 	}

@@ -20,7 +20,7 @@ const (
 
 // FixtureNames lists the fixtures Fixture knows.
 func FixtureNames() []string {
-	return []string{"single-disk-cp", "worker-encrypted", "whole-disk-fs"}
+	return []string{"single-disk-cp", "worker-encrypted", "whole-disk-fs", "qemu-vm"}
 }
 
 // Fixture returns the named fixture; it panics on a name FixtureNames lacks.
@@ -32,6 +32,8 @@ func Fixture(name string) Inputs {
 		return fixWorkerEncrypted()
 	case "whole-disk-fs":
 		return fixWholeDisk()
+	case "qemu-vm":
+		return fixQemuVM()
 	}
 	panic("unknown diskmodel fixture " + name)
 }
@@ -77,8 +79,8 @@ func fixVol(id, typ, phase, disk string, idx int, size uint64, fs, mount, enc st
 		loc = "/dev/" + disk
 	}
 	s := fmt.Sprintf("type: %s\nphase: %s\nlocation: %s\nparentLocation: /dev/%s\npartitionIndex: %d\nsize: %d\nfilesystem: %s\n", typ, phase, loc, disk, idx, size, fs)
-	if mount != "" {
-		s += "mountLocation: " + mount + "\nmountSpec:\n  targetPath: " + mount + "\n"
+	if mount != "" { // as Talos prints it: the device in mountLocation, the mount point in targetPath
+		s += "mountLocation: " + loc + "\nmountSpec:\n  targetPath: " + mount + "\n"
 	}
 	if enc != "" {
 		s += "encryptionProvider: " + enc + "\n"
@@ -163,7 +165,7 @@ func fixWorkerEncrypted() Inputs {
 func fixWholeDisk() Inputs {
 	dvs, vols, _ := systemLayout("vda", 40*GiB, 0)
 	dvs = append(dvs, fixRes("vdb", fmt.Sprintf("dev_path: /dev/vdb\ntype: disk\nname: xfs\nlabel: scratch\nsize: %d", 200*GiB)))
-	vols = append(vols, fixRes("u-scratch", fmt.Sprintf("type: disk\nphase: ready\nlocation: /dev/vdb\nparentLocation: /dev/vdb\nsize: %d\nfilesystem: xfs\nmountLocation: /var/mnt/scratch\nmountSpec:\n  targetPath: /var/mnt/scratch", 200*GiB)))
+	vols = append(vols, fixRes("u-scratch", fmt.Sprintf("type: disk\nphase: ready\nlocation: /dev/vdb\nparentLocation: /dev/vdb\nsize: %d\nfilesystem: xfs\nmountLocation: /dev/vdb\nmountSpec:\n  targetPath: /var/mnt/scratch", 200*GiB)))
 	return Inputs{
 		Node: "10.0.0.7",
 		Disks: []netmodel.Res{
@@ -174,5 +176,52 @@ func fixWholeDisk() Inputs {
 		SystemDisks: []netmodel.Res{fixRes("system-disk", "diskID: vda\ndevPath: /dev/vda")},
 		Discovered:  dvs,
 		Volumes:     vols,
+	}
+}
+
+// fixQemuVM follows what a real QEMU control plane printed for get disks,
+// get volumestatus and mounts (Talos 1.14): loop devices that are read-only,
+// one 10 GiB virtio disk marked rotational, mountLocation holding the device
+// and mountSpec.targetPath the mount point, directory and overlay volumes that
+// are not partitions. The EFI partition is not in the paste; its size is a guess.
+func fixQemuVM() Inputs {
+	loop := func(id string, size int) netmodel.Res {
+		return fixRes(id, fmt.Sprintf("dev_path: /dev/%s\nsize: %d\nio_size: 512\nsector_size: 512\nreadonly: true\ncdrom: false\nbus_path: /virtual", id, size))
+	}
+	const total = 10 * GiB
+	efi, meta, state, eph := 100*MiB, MiB, 100*MiB, uint64(8426356736)
+	off := MiB
+	dvs := []netmodel.Res{fixTable("vda", total)}
+	for i, p := range []struct {
+		label, fs string
+		size      uint64
+	}{{"EFI", "vfat", efi}, {"META", "none", meta}, {"STATE", "xfs", state}, {"EPHEMERAL", "xfs", eph}} {
+		dvs = append(dvs, fixPart("vda", i+1, off, p.size, p.fs, p.label))
+		off += p.size
+	}
+	dir := func(id, parent, target string) netmodel.Res {
+		return fixRes(id, "phase: ready\ntype: directory\nmountSpec:\n  targetPath: "+target+"\n  parentId: "+parent)
+	}
+	return Inputs{
+		Node: "172.30.0.2",
+		Disks: []netmodel.Res{
+			loop("loop0", 4096), loop("loop1", 761856), loop("loop2", 84504576),
+			fixDisk("vda", total, "", "", "virtio", true, "readonly: false\nbus_path: /pci0000:00/0000:00:06.0/virtio4"),
+		},
+		SystemDisks: []netmodel.Res{fixRes("system-disk", "diskID: vda\ndevPath: /dev/vda")},
+		Discovered:  dvs,
+		Volumes: []netmodel.Res{
+			fixRes("EPHEMERAL", fmt.Sprintf("phase: ready\ntype: partition\nlocation: /dev/vda4\nmountLocation: /dev/vda4\npartitionIndex: 4\nparentLocation: /dev/vda\nsize: %d\nfilesystem: xfs\nmountSpec:\n  targetPath: /var", eph)),
+			fixRes("META", fmt.Sprintf("phase: ready\ntype: partition\nlocation: /dev/vda2\nmountLocation: /dev/vda2\npartitionIndex: 2\nparentLocation: /dev/vda\nsize: %d", meta)),
+			fixRes("STATE", fmt.Sprintf("phase: ready\ntype: partition\nlocation: /dev/vda3\nmountLocation: /dev/vda3\npartitionIndex: 3\nparentLocation: /dev/vda\nsize: %d\nfilesystem: xfs\nmountSpec:\n  targetPath: /system/state", state)),
+			fixRes("/opt", "phase: ready\ntype: overlay\nparentID: EPHEMERAL\nmountSpec:\n  targetPath: /opt"),
+			dir("LOG", "EPHEMERAL", "log"), dir("/var/lib", "EPHEMERAL", "lib"),
+			fixRes("/var/run", "phase: ready\ntype: symlink\nmountSpec:\n  targetPath: /var/run\nsymlink:\n  symlinkTargetPath: /run"),
+		},
+		Usage: map[string]Usage{
+			"/var":      {Size: 8_360_000_000, Used: 1_370_000_000, Avail: 6_990_000_000},
+			"/dev/vda4": {Size: 8_360_000_000, Used: 1_370_000_000, Avail: 6_990_000_000},
+			"/opt":      {Size: 8_360_000_000, Used: 1_370_000_000, Avail: 6_990_000_000},
+		},
 	}
 }

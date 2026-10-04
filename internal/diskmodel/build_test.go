@@ -180,3 +180,57 @@ func TestBadDataDoesNotPanic(t *testing.T) {
 	_ = Build(in)
 	_ = Build(Inputs{})
 }
+
+// Shapes from a real QEMU control plane: the mount point is mountSpec.targetPath
+// (mountLocation is the device), directory and overlay volumes are not partitions.
+func TestQemuVMAsTalosPrintsIt(t *testing.T) {
+	m := Build(Fixture("qemu-vm"))
+	if len(m.Disks) != 4 || len(m.Shown(false)) != 1 {
+		t.Fatalf("disks %d shown %d: three read-only loop devices are hidden", len(m.Disks), len(m.Shown(false)))
+	}
+	vda := disk(t, m, "vda")
+	if !vda.System || vda.Type != "virtio" {
+		t.Fatalf("vda = %+v", vda)
+	}
+	if got := labels(vda); got != "EFI,META,STATE,EPHEMERAL,unallocated" && got != "EFI,META,STATE,EPHEMERAL" {
+		t.Fatalf("segments = %s", got)
+	}
+	var eph, state Segment
+	for _, s := range vda.Segments {
+		switch s.Label {
+		case "EPHEMERAL":
+			eph = s
+		case "STATE":
+			state = s
+		}
+	}
+	if eph.Mount != "/var" || eph.Role != RoleEphemeral || eph.FS != "xfs" {
+		t.Errorf("EPHEMERAL = %+v", eph)
+	}
+	if eph.Usage == nil || eph.Usage.Used != 1_370_000_000 {
+		t.Errorf("EPHEMERAL usage = %+v", eph.Usage)
+	}
+	if state.Mount != "/system/state" || state.Usage != nil {
+		t.Errorf("STATE = %+v (no usage row names it)", state)
+	}
+	for _, s := range vda.Segments {
+		if strings.HasPrefix(s.Mount, "/dev/") {
+			t.Errorf("%s shows the device %q as its mount point", s.Label, s.Mount)
+		}
+		if s.Label == "META" && (s.FS != "none" || s.Role != RoleMeta) {
+			t.Errorf("META = %+v", s)
+		}
+	}
+	if len(vda.Pending) != 0 {
+		t.Errorf("directory, overlay and symlink volumes are not pending partitions: %+v", vda.Pending)
+	}
+	// usage found by the device when the mount point is missing
+	in := Fixture("qemu-vm")
+	delete(in.Usage, "/var")
+	m = Build(in)
+	for _, s := range disk(t, m, "vda").Segments {
+		if s.Label == "EPHEMERAL" && s.Usage == nil {
+			t.Error("usage should match by device /dev/vda4 as well")
+		}
+	}
+}

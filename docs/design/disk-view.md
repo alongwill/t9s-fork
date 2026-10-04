@@ -106,6 +106,12 @@ Queued after learning PR D.
 - **Usage is not a resource.** The design said "existing `GetVolumeStatus`", but that never carried usage. Usage
   comes from the `mounts` table (`Client.GetMounts`, one subprocess call, decimal GB with two decimals), matched to a
   volume by `VolumeStatus.mountLocation` (else `mountSpec.targetPath`). v1.15 `diskfree` is not used yet.
-- Not verified against a real node: the exact `mountLocation` values, `secondary_disks` format on device-mapper
-  disks, and the `type` of a device-mapper `DiscoveredVolume`. The fixtures are hand-written.
+- Checked against real output from a QEMU control plane (Talos 1.14, `get disks`, `get volumestatus`, `mounts`):
+  `mountLocation` is the **device** (`/dev/vda4`) and the mount point is `mountSpec.targetPath` (`/var`); directory,
+  overlay and symlink volumes have no `location` and are not partitions; the mounts table names `/dev/vda4` for
+  `/var`, so usage is matched by mount point, then by device. Fixture `qemu-vm` follows that output.
+- Not verified against a real node: the `secondary_disks` format on device-mapper disks and the `type` of a
+  device-mapper `DiscoveredVolume`. Those fixtures are hand-written.
+- **Labels are not drawn on the bar.** Text over narrow partitions (STATE, META) was unreadable, so the bar is fill
+  glyphs only and a legend under it lists `● name fs size` per segment (Andrew, 2026-10-04). The mock above predates this.
 - Not built: LVM / RAID mapping beyond the `↳` line (as decided), `diskfree`.

@@ -14,10 +14,7 @@ import (
 // Drawing of the disk view: a summary line, one box per disk with a bar split
 // into its partitions, and a table for the selected partition.
 
-const (
-	segMinW       = 3  // narrowest a segment gets, so 1 MiB partitions stay visible
-	diskNoSizeRow = 80 // pane width below which the size line is dropped
-)
+const segMinW = 3 // narrowest a segment gets, so 1 MiB partitions stay visible
 
 // --- sizes ---
 
@@ -62,11 +59,11 @@ func ad(light, dark string) lipgloss.AdaptiveColor {
 
 var (
 	roleColors = map[diskmodel.Role]lipgloss.AdaptiveColor{
-		diskmodel.RoleEFI:       ad("#57606a", "#8b9bb0"), // slate shades for the system partitions
-		diskmodel.RoleBIOS:      ad("#6e7781", "#7d8ea3"),
-		diskmodel.RoleBoot:      ad("#4c6a8c", "#6a8fb8"),
-		diskmodel.RoleMeta:      ad("#7a869a", "#94a3b8"),
-		diskmodel.RoleState:     ad("#3b5b84", "#5b87c4"),
+		diskmodel.RoleEFI:       ad("#4f7fb5", "#6a9fd8"), // blue-grey family for the system partitions, tuned so neighbours differ
+		diskmodel.RoleBIOS:      ad("#6e7781", "#a0acbd"),
+		diskmodel.RoleBoot:      ad("#2f8fb3", "#4fb3d9"),
+		diskmodel.RoleMeta:      ad("#8b6aa8", "#c3a6dc"),
+		diskmodel.RoleState:     ad("#3f51b5", "#7c8cf0"),
 		diskmodel.RoleEphemeral: ad("#1a7f37", "#3fb950"),
 		diskmodel.RoleImage:     ad("#0a7f8a", "#39c5cf"),
 		diskmodel.RoleRaw:       ad("#bc4c00", "#ffa657"),
@@ -182,42 +179,22 @@ func layoutWidths(sizes []uint64, total, minW int) []int {
 
 // --- the bar ---
 
-func segLabelVariants(s diskmodel.Segment, unused, si bool) []string {
-	if s.Role == diskmodel.RoleFree {
-		if unused {
-			return []string{"not used by Talos"}
-		}
-		return []string{"unallocated " + fmtSize(s.Size, si), "unallocated", "free"}
-	}
-	pct := ""
-	if s.Usage != nil && s.Usage.Size > 0 {
-		pct = fmt.Sprintf("%d%%", int(math.Round(100*float64(s.Usage.Used)/float64(s.Usage.Size))))
-	}
-	join := func(parts ...string) string {
-		var out []string
-		for _, p := range parts {
-			if p != "" {
-				out = append(out, p)
-			}
-		}
-		return strings.Join(out, " ")
-	}
-	lock := ""
-	if s.Encrypted {
-		lock = "lock"
-	}
-	vs := []string{join(s.Label, s.FS, lock, pct), join(s.Label, lock, pct), join(s.Label, lock), s.Label}
-	return vs
+// fmtUnit is a size with its unit and no trailing ".0": 1MiB, 7.8GiB, 100MB.
+func fmtUnit(n uint64, si bool) string {
+	f := fmtSize(n, si)
+	num, unit, _ := strings.Cut(f, " ")
+	return strings.TrimSuffix(num, ".0") + unit
 }
 
-// segCells draws one segment: fill glyphs (used ▓, free ░, unknown █,
-// unallocated ·) with the label on a coloured chip over them.
-func segCells(s diskmodel.Segment, w int, selected, unused, si bool) string {
+// segCells draws one segment as fill glyphs only: used ▓, free ░, usage
+// unknown █, unallocated ·. Names and sizes go in the legend under the bar, so
+// narrow partitions never need a label squeezed over them.
+func segCells(s diskmodel.Segment, w int, selected bool) string {
 	if w <= 0 {
 		return ""
 	}
-	col := segColor(s)
 	fill := make([]rune, w)
+	style := lipgloss.NewStyle().Foreground(segColor(s))
 	switch {
 	case s.Role == diskmodel.RoleFree:
 		for i := range fill {
@@ -226,6 +203,7 @@ func segCells(s diskmodel.Segment, w int, selected, unused, si bool) string {
 				fill[i] = ' '
 			}
 		}
+		style = dimStyle
 	case s.Usage != nil && s.Usage.Size > 0:
 		used := int(math.Round(float64(w) * float64(s.Usage.Used) / float64(s.Usage.Size)))
 		for i := range fill {
@@ -239,44 +217,71 @@ func segCells(s diskmodel.Segment, w int, selected, unused, si bool) string {
 			fill[i] = '█'
 		}
 	}
+	if selected {
+		style = style.Bold(true)
+	}
+	return style.Render(string(fill))
+}
 
-	text := ""
-	for _, v := range segLabelVariants(s, unused, si) {
-		if len([]rune(v)) <= w-2 {
-			text = v
-			break
-		}
+// legendEntry is "● name fs size [lock]" for one segment, the dot in the
+// segment's colour.
+func legendEntry(s diskmodel.Segment, unused, si bool, selected bool) (string, int) {
+	dot, text := "●", s.Label
+	col := segColor(s)
+	switch {
+	case s.Role == diskmodel.RoleFree && unused:
+		text, dot = "not used by Talos", "○"
+	case s.Role == diskmodel.RoleFree:
+		text, dot = "unallocated", "○"
 	}
-	if text == "" && s.Role != diskmodel.RoleFree {
-		lab := []rune(s.Label)
-		switch {
-		case len(lab) <= w:
-			text = s.Label
-		case w >= 4:
-			text = string(lab[:w-1]) + "…"
-		}
+	parts := []string{text}
+	if s.FS != "" && s.FS != "none" {
+		parts = append(parts, s.FS)
 	}
-	start := 0
-	if tl := len([]rune(text)); tl > 0 && w >= tl+2 {
-		start = 1
+	parts = append(parts, fmtUnit(s.Size, si))
+	if s.Encrypted {
+		parts = append(parts, "lock")
 	}
-	fillStyle := lipgloss.NewStyle().Foreground(col)
+	plain := dot + " " + strings.Join(parts, " ")
+	nameStyle := lipgloss.NewStyle()
+	dotStyle := lipgloss.NewStyle().Foreground(col)
 	if s.Role == diskmodel.RoleFree {
-		fillStyle = dimStyle
+		nameStyle, dotStyle = dimStyle, dimStyle
 	}
-	chip := lipgloss.NewStyle().Background(col).Foreground(colorOnAccent).Bold(true)
-	if s.Role == diskmodel.RoleFree {
-		chip = lipgloss.NewStyle().Foreground(colorRoleOther)
+	if s.Failed() {
+		nameStyle = lipgloss.NewStyle().Foreground(diskBad)
 	}
 	if selected {
-		chip = chip.Underline(true)
+		nameStyle = nameStyle.Bold(true).Underline(true)
 	}
-	var sb strings.Builder
-	tr := []rune(text)
-	sb.WriteString(fillStyle.Render(string(fill[:start])))
-	sb.WriteString(chip.Render(string(tr)))
-	sb.WriteString(fillStyle.Render(string(fill[min(w, start+len(tr)):])))
-	return sb.String()
+	styled := dotStyle.Render(dot) + " " + nameStyle.Render(strings.Join(parts, " "))
+	return styled, lipgloss.Width(plain)
+}
+
+// legendLines lays the entries out left to right, wrapping at width.
+func legendLines(d diskmodel.Disk, selSeg int, si bool, width int) []string {
+	var lines []string
+	cur, curW := "", 0
+	for i, s := range d.Segments {
+		entry, w := legendEntry(s, d.Unused, si, i == selSeg)
+		if w > width {
+			entry, w = clipANSI(entry, width), width
+		}
+		if curW > 0 && curW+2+w > width {
+			lines = append(lines, cur)
+			cur, curW = "", 0
+		}
+		if curW > 0 {
+			cur += "  "
+			curW += 2
+		}
+		cur += entry
+		curW += w
+	}
+	if curW > 0 {
+		lines = append(lines, cur)
+	}
+	return lines
 }
 
 // diskBlock returns the lines of one disk's box, every line exactly iw wide.
@@ -316,7 +321,7 @@ func (app App) diskBlock(d diskmodel.Disk, dv diskView, selDisk bool, iw int) []
 		sizes[i] = s.Size
 	}
 	widths := layoutWidths(sizes, barW, segMinW)
-	var bar, szs, mark strings.Builder
+	var bar, mark strings.Builder
 	selSeg := -1
 	if selDisk {
 		selSeg = dv.seg
@@ -326,28 +331,16 @@ func (app App) diskBlock(d diskmodel.Disk, dv diskView, selDisk bool, iw int) []
 		if w == 0 {
 			continue
 		}
-		bar.WriteString(segCells(s, w, i == selSeg, d.Unused, dv.si))
-		short := fmtShort(s.Size, dv.si)
-		cell := ""
-		if len(short) < w {
-			cell = short
-		}
-		style := dimStyle
-		if i == selSeg {
-			style = lipgloss.NewStyle().Bold(true)
-		}
-		szs.WriteString(style.Render(fit(cell, w)))
+		bar.WriteString(segCells(s, w, i == selSeg))
 		if i == selSeg {
 			mark.WriteString(lipgloss.NewStyle().Foreground(categoryAccent("block")).Render(strings.Repeat("▔", w)))
 		} else {
 			mark.WriteString(strings.Repeat(" ", w))
 		}
 	}
-	lines := []string{top, row(bar.String())}
-	if iw >= diskNoSizeRow {
-		lines = append(lines, row(szs.String()), row(mark.String()))
-	} else if selDisk {
-		lines = append(lines, row(mark.String()))
+	lines := []string{top, row(bar.String()), row(mark.String())}
+	for _, l := range legendLines(d, selSeg, dv.si, barW) {
+		lines = append(lines, row(l))
 	}
 	for _, mp := range d.Mappers {
 		x := dimStyle.Render("↳ " + mp.Dev)
