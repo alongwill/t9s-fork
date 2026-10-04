@@ -235,6 +235,7 @@ func (app App) categoryLines(p pane, iw, inner int, active bool) []string {
 
 func (app App) typeLines(p pane, iw, inner int, active bool) []string {
 	b := app.browser
+	b.lockWhy = app.lockShort()
 	entries := b.typeEntries(p.category, p.filter)
 	vis := b.typeVisual(p.category, p.filter)
 	if len(vis) == 0 {
@@ -246,7 +247,7 @@ func (app App) typeLines(p pane, iw, inner int, active bool) []string {
 	}
 	start := clampScrollStart(p.scroll, cur, len(vis), inner)
 	avail := max(0, iw-2)
-	const countW, aliasW = 5, 12
+	countW, aliasW := max(5, lipgloss.Width(padlock())), 12
 	showAlias := avail >= 30
 	var out []string
 	for i := start; i < len(vis) && i < start+inner; i++ {
@@ -287,7 +288,7 @@ func (app App) typeLines(p pane, iw, inner int, active bool) []string {
 		default:
 			nameW = max(1, avail-lipgloss.Width(cnt)-1)
 			text = rowLR(selected, e.name(), cnt, iw)
-			cntFrom = len([]rune(strings.TrimRight(text, " "))) - lipgloss.Width(cnt) // rowLR right-aligns the count
+			cntFrom = len([]rune(strings.TrimRight(text, " "))) - len([]rune(cnt)) // rowLR right-aligns the count (spans are rune-indexed)
 		}
 		base := rowStyle(selected, active, dim)
 		var spans []span
@@ -298,8 +299,8 @@ func (app App) typeLines(p pane, iw, inner int, active bool) []string {
 			spans = append(spans, span{2 + len([]rune(stem)), nameEnd, withFg(base, roleColor(role))})
 		}
 		switch {
-		case cnt == "lock":
-			spans = append(spans, span{cntFrom, cntFrom + 4, withFg(base, colorLockAccent)})
+		case cnt == padlock():
+			spans = append(spans, span{cntFrom, cntFrom + padlockRunes(), withFg(base, colorLockAccent)})
 		case !dim && cnt != "…" && cnt != "?":
 			spans = append(spans, span{cntFrom, cntFrom + lipgloss.Width(cnt), withFg(base, categoryAccent(p.category)).Bold(true)})
 		}

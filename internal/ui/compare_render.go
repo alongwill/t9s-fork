@@ -17,7 +17,7 @@ var (
 // narrow panes so the node name keeps at least 14 cells.
 func (app App) compareLines(p pane, iw, inner int, active bool) []string {
 	avail := max(0, iw-2)
-	const presentW, versionW, sameW, roleW = 7, 8, 5, 12
+	presentW, versionW, sameW, roleW := max(7, lipgloss.Width(padlock())), 8, 5, 12
 	showRole := avail-(presentW+versionW+sameW+roleW+4) >= 14
 	used := presentW + versionW + sameW + 3
 	if showRole {

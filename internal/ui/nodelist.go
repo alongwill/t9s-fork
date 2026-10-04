@@ -83,6 +83,7 @@ func (app App) handleNodeListKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		}
 		app.selNode = n
 		app.machConf = ""
+		app.machDenied = false
 		app.machLoading = true
 		app.statusMsg = "Loading machine config..."
 		app = app.goTo(StateMachineConfig)

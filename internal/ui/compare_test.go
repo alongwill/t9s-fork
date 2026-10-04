@@ -104,7 +104,7 @@ func TestCompareRowsPresentAbsentDifferent(t *testing.T) {
 		{"talos-node-01.example.internal", "yes", "base", "4"},
 		{"talos-node-02.example.internal", "yes", "no", "5"},
 		{"talos-node-03.example.internal", "no", "-", ""},
-		{"talos-node-04.example.internal", "lock", "-", ""},
+		{"talos-node-04.example.internal", padlock(), "-", ""},
 	}
 	for _, w := range want {
 		r := rowOf(app, w.host)

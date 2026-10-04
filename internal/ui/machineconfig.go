@@ -164,6 +164,9 @@ func (app App) renderMachineConfig(height int) string {
 		return title + lipgloss.Place(app.width, height-2, lipgloss.Center, lipgloss.Center,
 			infoStyle.Render("Loading machine config..."))
 	}
+	if app.machDenied {
+		return title + app.lockPanel(height-2)
+	}
 	if app.machSection == "" {
 		return title + lipgloss.Place(app.width, height-2, lipgloss.Center, lipgloss.Center,
 			warnStyle.Render("No machine config found."))

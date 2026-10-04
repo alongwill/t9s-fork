@@ -342,7 +342,7 @@ func (r cmpRow) presentText() string {
 	case cmpAbsent:
 		return "no"
 	case cmpLocked:
-		return "lock"
+		return padlock()
 	}
 	return "err"
 }
@@ -380,7 +380,7 @@ func (app App) compareEnter() (App, tea.Cmd) {
 	case !hasBase || base.state != cmpPresent:
 		app.statusMsg = warnStyle.Render("nothing to diff against: absent on the browser's node")
 	case row.state != cmpPresent:
-		app.statusMsg = warnStyle.Render(row.node.Hostname + ": " + describeCmpState(row))
+		app.statusMsg = warnStyle.Render(row.node.Hostname + ": " + app.describeCmpState(row))
 	default:
 		lines := unifiedDiff(nodeTitle(base.node), nodeTitle(row.node), base.yaml, row.yaml, 3)
 		app.browser = app.browser.push(pane{kind: paneDiff, title: "Diff " + cv.subject.label, diff: lines})
@@ -393,14 +393,14 @@ func (app App) compareEnter() (App, tea.Cmd) {
 	return app, nil
 }
 
-func describeCmpState(r cmpRow) string {
+func (app App) describeCmpState(r cmpRow) string {
 	switch r.state {
 	case cmpLoading:
 		return "still loading"
 	case cmpAbsent:
 		return "absent"
 	case cmpLocked:
-		return "requires os:admin"
+		return padlock() + " " + app.lockReason()
 	}
 	if r.err != "" {
 		return "error: " + r.err

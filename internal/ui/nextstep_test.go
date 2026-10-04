@@ -36,7 +36,7 @@ func TestNextStepTypesPane(t *testing.T) {
 	// locked and uncounted
 	app = typesAppAt(t, "Thing02")
 	app.browser = app.browser.setCount("Thing02.net.talos.dev", countLocked)
-	if got := app.nextStep(); !strings.HasPrefix(got, "requires os:admin") {
+	if got := app.nextStep(); !strings.HasPrefix(got, padlock()+" needs os:admin") {
 		t.Errorf("locked row: %q", got)
 	}
 	delete(app.browser.counts, "Thing02.net.talos.dev")

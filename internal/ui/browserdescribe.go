@@ -94,7 +94,7 @@ func (app App) configDescribeRows(s descSubject) []drow {
 	case cfgLoaded:
 		rows = labelled(rows, "IN THIS NODE", fmt.Sprintf("%d document(s)", len(b.docsOfKind(ck.Kind))))
 	case cfgDenied:
-		rows = labelled(rows, "IN THIS NODE", "requires os:admin")
+		rows = labelled(rows, "IN THIS NODE", padlock()+" "+app.lockReason())
 	}
 	g, note := app.depGraph()
 	if note != "" {

@@ -110,6 +110,7 @@ type App struct {
 	machSection   string // extracted "machine:" section shown in UI
 	machVP        viewport.Model
 	machLoading   bool
+	machDenied    bool   // the read was refused: show the padlock panel
 	machEditFile  string // temp file path while editing
 	machEditMode  bool   // waiting for apply confirmation
 	machFindQuery string
@@ -519,9 +520,13 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case machineConfigLoadedMsg:
 		app.machLoading = false
-		if msg.err != nil {
+		app.machDenied = msg.err != nil && talos.IsPermissionDenied(msg.err)
+		switch {
+		case app.machDenied:
+			app.statusMsg = app.lockMessage()
+		case msg.err != nil:
 			app.statusMsg = errStyle.Render("Error: " + msg.err.Error())
-		} else {
+		default:
 			app.machConf = msg.content
 			app.machSection = extractSpecContent(msg.content)
 			app.machVP.SetContent(colorYAMLText(app.machSection, ""))
@@ -1023,7 +1028,7 @@ func (app App) renderFooter() string {
 	if app.verMismatch != "" {
 		status = warnStyle.Render(app.verMismatch) + "  " + status
 	}
-	return sepLine + "\n  " + status
+	return sepLine + "\n  " + clipANSI(status, max(1, app.width-2))
 }
 
 func (app App) renderMain(height int) string {
