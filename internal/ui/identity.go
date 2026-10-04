@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -16,11 +17,105 @@ import (
 // identity is what t9s knows about who it talks to: whether the context goes
 // through Omni (from the talosconfig, or later from the cluster).
 type identity struct {
-	omni config.Omni
+	omni     config.Omni
+	siderov1 bool            // the context signs requests for Omni (no client cert)
+	cert     config.CertInfo // client certificate: roles and expiry
+	hasCert  bool
+	now      func() time.Time // tests; nil = time.Now
 }
 
 func newIdentity(cfg *config.TalosConfig, ctxName string) identity {
-	return identity{omni: cfg.Named(ctxName).DetectOmni()}
+	c := cfg.Named(ctxName)
+	id := identity{omni: c.DetectOmni(), siderov1: c != nil && c.Auth.SideroV1 != nil}
+	if ci, err := c.CertInfo(); err == nil {
+		id.cert, id.hasCert = ci, true
+	}
+	return id
+}
+
+func (id identity) clock() time.Time {
+	if id.now != nil {
+		return id.now()
+	}
+	return time.Now()
+}
+
+// viaOmni is true when Omni, not a certificate, decides the Talos role.
+func (id identity) viaOmni() bool {
+	return id.siderov1 || (id.omni.Detected && !id.hasCert)
+}
+
+// roles are the Talos roles of the client certificate (empty for Omni).
+func (id identity) roles() []string {
+	if id.viaOmni() || !id.hasCert {
+		return nil
+	}
+	return id.cert.Roles
+}
+
+// roleSummary is the current role as text, for messages: "os:reader",
+// "os:admin, os:etcd:backup", "no role in the certificate", or "via Omni".
+func (id identity) roleSummary() string {
+	switch {
+	case id.viaOmni():
+		return "via Omni"
+	case !id.hasCert:
+		return "unknown"
+	case len(id.cert.Roles) == 0:
+		return "no role in the certificate"
+	}
+	return strings.Join(id.cert.Roles, ", ")
+}
+
+// certWarnWindow is how long before expiry the top bar starts to warn.
+const certWarnWindow = 7 * 24 * time.Hour
+
+// talosRoleChip colours one Talos role: admin red, operator yellow, reader green,
+// anything else dim.
+func talosRoleChip(role string) string {
+	base := lipgloss.NewStyle().Foreground(lipgloss.Color("#0d1117")).Bold(true)
+	switch role {
+	case "os:admin":
+		return base.Background(colorRed).Render(" " + role + " ")
+	case "os:operator":
+		return base.Background(colorYellow).Render(" " + role + " ")
+	case "os:reader":
+		return base.Background(colorGreen).Render(" " + role + " ")
+	}
+	return lipgloss.NewStyle().Background(colorBgHead).Foreground(colorGray).Render(" " + role + " ")
+}
+
+// roleBadge is the top-bar role part: one chip per certificate role plus the
+// expiry warning, or "role: via Omni". Empty when the role is unknown.
+func (app App) roleBadge(withExpiry bool) string {
+	id := app.id
+	if id.viaOmni() {
+		return headerDimStyle.Render(" role: via Omni ")
+	}
+	if !id.hasCert {
+		return ""
+	}
+	var parts []string
+	for _, r := range id.cert.Roles {
+		parts = append(parts, talosRoleChip(r))
+	}
+	if len(parts) == 0 {
+		parts = append(parts, headerDimStyle.Render(" no roles "))
+	}
+	out := strings.Join(parts, "")
+	if withExpiry {
+		warn := lipgloss.NewStyle().Background(colorBgHead).Foreground(colorYellow)
+		days, expired, ok := id.cert.ExpiryWarning(id.clock(), certWarnWindow)
+		switch {
+		case ok && expired:
+			out += lipgloss.NewStyle().Background(colorBgHead).Foreground(colorRed).Bold(true).Render(" cert expired ")
+		case ok && days == 0:
+			out += warn.Render(" cert expires in <1d ")
+		case ok:
+			out += warn.Render(fmt.Sprintf(" cert expires in %dd ", days))
+		}
+	}
+	return out
 }
 
 // ctxName is the active talosconfig context.
@@ -130,11 +225,11 @@ func (app App) platformBadge(withHost bool) string {
 }
 
 // maxHeaderLevel is the most compact top-bar layout headerLeft knows.
-const maxHeaderLevel = 4
+const maxHeaderLevel = 5
 
 // headerLeft builds the left part of the top bar. Level 0 shows everything;
-// each higher level drops something: 1 the selected node, 2 the Omni host
-// text, 3 the context, 4 the platform badge.
+// each higher level drops something: 1 the selected node, 2 the Omni host text
+// and the cert expiry, 3 the context, 4 the platform badge, 5 the role.
 func (app App) headerLeft(level int) string {
 	logo := lipgloss.NewStyle().
 		Background(colorBgHead).
@@ -145,8 +240,12 @@ func (app App) headerLeft(level int) string {
 
 	left := logo + sep + app.modeBadge()
 	if level < 4 {
-		badge := app.platformBadge(level < 2)
-		left += sep + badge
+		left += sep + app.platformBadge(level < 2)
+	}
+	if level < 5 {
+		if r := app.roleBadge(level < 2); r != "" {
+			left += sep + r
+		}
 	}
 	if level < 3 {
 		left += sep + headerStyle.Render(" ctx: "+app.ctxName()+" ")
