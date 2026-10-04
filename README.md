@@ -35,7 +35,8 @@ The aim of this project is to make it easier to navigate, observe and manage you
 - 🗂️ **Resource browser** — browse a node's machine-config documents and COSI resources by category (Networking, Block, …), greyed when absent or empty, with YAML and describe panes, a `ctrl+a` all-types palette and `:` jump commands (`a` on a node)
 - 📊 **Metrics** — CPU/RAM stats with delta and the pod namespace, auto-refreshed every 5s
 - 📄 **Machine config** — read-only YAML viewer
-- 🧩 **Extensions** — installed list + Siderolabs catalog browser (requires `crane`)
+- 🔒 **Read-only by default** — keys that change a cluster are hidden and refused until you start t9s with `--write`; an `RO`/`RW` badge, the Omni or Talos platform and your current role sit in the top bar
+- 🧩 **Extensions** — installed list, the schematic YAML it was built from (`Enter`, fetched from the Image Factory), and the Siderolabs catalog browser (requires `crane`)
 - ⬆️ **Upgrades** — Talos and Kubernetes, with version pre-fill and a `--drain` toggle (`--preserve` on older talosctl)
 - 🩺 **Health** — streaming cluster health checks
 - 🔀 **Multi-context** — switch talosconfig context at runtime (`x`)
@@ -146,9 +147,32 @@ t9s --talosconfig ~/.talos/config --context my-cluster
 # Resource browser data source: auto (default), grpc or cli
 t9s --source=grpc
 
+# Allow actions that change a cluster (reboot, shutdown, upgrades, config edit)
+t9s --write
+
 # Print version
 t9s --version
 ```
+
+### Read-only mode (default)
+
+t9s starts **read-only**. Keys that change a cluster (`R` reboot, `S` shutdown, `U` upgrade Talos, `K` upgrade Kubernetes, `e` edit and apply the machine config) are not shown in the hints or the help overlay. Pressing one says `read-only mode: start t9s with --write to <action>` and does nothing. The Talos client in t9s refuses the same calls too (`ErrReadOnly`), so a bug in a view cannot change a cluster.
+
+| How | Effect |
+|-----|--------|
+| `t9s` | read-only |
+| `t9s --write` or `t9s --readonly=false` | writes on |
+| `T9S_READONLY=false t9s` | writes on (an explicit flag wins over the variable; `--write` with `--readonly=true` stays read-only) |
+
+The top bar shows a green `RO` badge in read-only mode and a red, bold `RW` badge in write mode.
+
+### What the top bar tells you
+
+`t9s │ RO │ Omni acme.omni.example │ os:reader │ ctx: prod │ node`
+
+- **Platform.** A purple `Omni <host>` badge when the context goes through Omni, plain `Talos` otherwise. t9s recognises Omni, in order, from (a) an `auth.siderov1` block in the talosconfig context, (b) an HTTPS endpoint whose host contains `omni`, (c) a `SiderolinkStatus` on the first node, checked once after the node list loads. (a) and (b) need no network call. The help overlay (`?`, Status section) says which path matched.
+- **Role.** For a client certificate t9s reads the Talos roles from the certificate subject: `os:admin` red, `os:operator` yellow, `os:reader` green, other roles dim. Within 7 days of expiry it adds `cert expires in Nd` (or `cert expired`). On Omni it shows `role: via Omni`: Omni maps your Omni user's role to a Talos role on every call (a Reader gets `os:reader`; an Operator or higher gets `os:operator` on Talos 1.4+ and `os:admin` for a few destructive methods), and it never forwards reads of sensitive resources such as `MachineConfig`, whatever your role.
+- **Padlock.** A `🔒` marks every read that was denied (types pane counts, the `CONFIG` section, related and compare views, describe, the Machine Config view). Press Enter on it: the status line says why, `Omni does not forward reads of sensitive resources such as MachineConfig, whatever your role` on Omni, `needs os:admin (you have os:reader)` elsewhere. Set `T9S_ASCII=1` to show `[locked]` instead of the emoji.
 
 ---
 
@@ -176,8 +200,8 @@ t9s uses aliases to navigate most Talos resources — hit `?` at any time for th
 | <kbd>e</kbd> | Extensions | | <kbd>a</kbd> | Resource browser |
 | <kbd>C</kbd> | Extension catalog | | <kbd>i</kbd> | Disk view: partition bars |
 | <kbd>m</kbd> | Machine config | | <kbd>d</kbd> | Dmesg |
-| <kbd>H</kbd> | Cluster health | | <kbd>R</kbd> / <kbd>S</kbd> | Reboot / Shutdown |
-| <kbd>U</kbd> | Upgrade Talos | | <kbd>K</kbd> | Upgrade Kubernetes |
+| <kbd>H</kbd> | Cluster health | | <kbd>R</kbd> / <kbd>S</kbd> | Reboot / Shutdown (`--write` only) |
+| <kbd>U</kbd> | Upgrade Talos (`--write` only) | | <kbd>K</kbd> | Upgrade Kubernetes (`--write` only) |
 | <kbd>r</kbd> | Refresh | | <kbd>A</kbd> | Network addresses |
 | <kbd>Ctrl</kbd>+<kbd>A</kbd> | All-types palette for the selected node | | <kbd>:</kbd> | Command mode (`:nodes`, `:net`, `:netview`, `:addr`, `:q`, …) |
 | <kbd>N</kbd> | Network view: the node's network as a tree, plus an HTML diagram | | | |
@@ -341,7 +365,13 @@ A rounded box with the container ID, pod namespace / pod / container (parsed fro
 
 `processes` has no parent-PID column, so only the row with the container's own PID is shown, not its children. A pod sandbox row has no logs.
 
-### Upgrade
+### Extensions and the schematic
+
+The Extensions view (`e`) shows `schematic <short id> · <factory host>` under its title. `Enter` opens a pane titled `Schematic <id[:12]>` with the full ID, the flavor, the factory URL and the schematic YAML. The same pane opens with `y` in the describe pane of `ImageFactorySchematic`.
+
+t9s reads the ID from `ImageFactorySchematics.runtime.talos.dev` (Talos 1.14+). On older nodes it uses the extension named `schematic`, whose version is the ID, and assumes `https://factory.talos.dev`. The YAML comes from `GET <factory>/schematics/<id>` (`Accept: application/yaml`, 10 s timeout, cached for the session). It is a read, so it works in read-only mode. If the factory answers 401/403 (a private factory) the pane shows `🔒 the factory needs authentication; schematic ID <id>`; on a network error it shows the error with the ID and URL so you can open it yourself.
+
+### Upgrade (needs `--write`)
 
 | Key | Action |
 |-----|--------|

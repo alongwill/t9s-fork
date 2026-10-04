@@ -406,7 +406,7 @@ func (app App) relOpenCell(p pane) (App, tea.Cmd) {
 	col := t.cols[p.rel.col]
 	switch cell.state {
 	case cellLocked:
-		app.statusMsg = warnStyle.Render("requires os:admin")
+		app.statusMsg = app.lockMessage()
 		return app, nil
 	case cellLoading:
 		app.statusMsg = dimStyle.Render("still loading…")
@@ -694,7 +694,7 @@ func (app App) relBoxView(rb relBox, w int, selected, hi bool) string {
 	}
 	badge := dimStyle.Render(cnt)
 	switch {
-	case cnt == "lock":
+	case cnt == padlock():
 		badge = lipgloss.NewStyle().Foreground(colorLockAccent).Render(cnt)
 	case !dim && inner >= 18:
 		badge = chip(cnt, col)
@@ -860,7 +860,7 @@ func relCellText(c relCell, marked bool) string {
 		}
 		return "●"
 	case cellLocked:
-		return "lock"
+		return padlock()
 	case cellLoading:
 		return "…"
 	case cellError:
@@ -898,7 +898,7 @@ func (app App) renderRelTable(p pane, t relTable, iw, rows int, active bool) []s
 	widths := make([]int, len(t.cols))
 	for i, c := range t.cols {
 		n, l := relHeaderParts(c.title)
-		widths[i] = max(6, max(lipgloss.Width(n), lipgloss.Width(l))) + 2
+		widths[i] = max(6, lipgloss.Width(padlock()), lipgloss.Width(n), lipgloss.Width(l)) + 2
 	}
 	budget := iw - (labelW + 2) - 1
 	// the window of columns that keeps the cursor column on screen

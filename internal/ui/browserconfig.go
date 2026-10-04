@@ -186,7 +186,7 @@ func (b browser) typeVisual(cat, filter string) []vrow {
 			sel++
 		}
 	case filter == "" && b.cfgState == cfgDenied:
-		out = append(out, vrow{header: "CONFIG", sel: -1}, vrow{note: "requires os:admin", sel: -1})
+		out = append(out, vrow{header: "CONFIG", sel: -1}, vrow{note: padlock() + " " + b.lockNote(), sel: -1})
 	case filter == "" && b.cfgState == cfgError:
 		out = append(out, vrow{header: "CONFIG", sel: -1}, vrow{note: "could not read machine config", sel: -1})
 	case filter == "" && b.cfgState == cfgLoading:

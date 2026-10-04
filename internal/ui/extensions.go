@@ -6,6 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/florianspk/t9s/internal/talos"
 )
 
 func (app App) handleExtensionsKey(msg tea.KeyMsg) (App, tea.Cmd) {
@@ -25,6 +27,17 @@ func (app App) handleExtensionsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 			app.extCur++
 			app.viewScrollStart = clampScrollStart(app.viewScrollStart, app.extCur, len(app.filteredExtensions()), app.mainHeight()-3)
 		}
+
+	case "enter":
+		if app.selNode == nil {
+			return app, nil
+		}
+		var known *talos.SchematicInfo
+		if app.extSchemOK {
+			k := app.extSchem
+			known = &k
+		}
+		return app.openSchematic(app.selNode.IP, known)
 
 	case "C":
 		if app.selNode != nil {
@@ -49,6 +62,10 @@ func (app App) renderExtensions(height int) string {
 		node = app.selNode.Hostname
 	}
 	title := fmt.Sprintf("  Extensions on %s\n", titleStyle.Render(node))
+	if h := app.extensionsHeaderLine(); h != "" {
+		title += h + "\n"
+		height--
+	}
 
 	if app.extLoading && len(app.extensions) == 0 {
 		return title + lipgloss.Place(app.width, height-2, lipgloss.Center, lipgloss.Center,

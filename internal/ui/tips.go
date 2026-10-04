@@ -25,7 +25,7 @@ var browserTips = []string{
 	"A resource's owner is the controller that wrote it; d shows it for an instance",
 	"A *Spec is usually the input of a controller; the matching *Status is its output",
 	"Talos has no shell or SSH: resources are how you look inside a node",
-	"A lock row needs os:admin: its type is marked sensitive",
+	"A padlock row was denied: its type is sensitive (Enter on it says why)",
 	"The CONFIG section lists the machine config documents on this node",
 	":nodes goes back to the node list; :aliases opens the all types palette",
 	"q goes back like Esc; on the first pane it returns to the node list",

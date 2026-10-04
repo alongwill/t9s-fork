@@ -72,18 +72,21 @@ func stateHints(app App) []hint {
 			{"Esc/q", "Back"},
 		}
 	case StateMachineConfig:
-		return []hint{
+		hs := []hint{
 			{"↑↓", "Scroll"},
 			{"PgUp/Dn", "Half page"},
 			{"g/G", "Top/Bottom"},
 			{"/", "Find"},
 			{"n/N", "Next/Prev"},
-			{"e", "Edit & apply"},
-			{"Esc/q", "Back"},
 		}
+		if app.writeMode { // dangerous: hidden in read-only mode
+			hs = append(hs, hint{"e", "Edit & apply"})
+		}
+		return append(hs, hint{"Esc/q", "Back"})
 	case StateExtensions:
 		return []hint{
 			{"↑↓", "Navigate"},
+			{"↵", "Schematic YAML"},
 			{"C", "Catalog"},
 			{"Esc/q", "Back"},
 		}
@@ -142,6 +145,8 @@ func stateHints(app App) []hint {
 			return []hint{{"↵", "Confirm"}, {"tab", "Toggle drain/preserve"}, {"Esc/q", "Back"}}
 		}
 		return []hint{{"↵", "Confirm"}, {"Esc/q", "Back"}}
+	case StateSchematic:
+		return []hint{{"↑↓", "Scroll"}, {"g/G", "Top/Bottom"}, {"Esc/q", "Back"}}
 	case StateContextSwitcher:
 		return []hint{
 			{"↑↓", "Navigate"},

@@ -94,6 +94,9 @@ func (app App) handleMachineConfigKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		}
 
 	case "e":
+		if a, blocked := app.refuseDangerous("edit-config"); blocked {
+			return a, nil
+		}
 		return app.startMachineConfigEdit()
 
 	case "g":
@@ -161,6 +164,9 @@ func (app App) renderMachineConfig(height int) string {
 		return title + lipgloss.Place(app.width, height-2, lipgloss.Center, lipgloss.Center,
 			infoStyle.Render("Loading machine config..."))
 	}
+	if app.machDenied {
+		return title + app.lockPanel(height-2)
+	}
 	if app.machSection == "" {
 		return title + lipgloss.Place(app.width, height-2, lipgloss.Center, lipgloss.Center,
 			warnStyle.Render("No machine config found."))
@@ -183,6 +189,9 @@ func (app App) renderMachineConfig(height int) string {
 // ── edit & apply ──────────────────────────────────────────────────────────────
 
 func (app App) startMachineConfigEdit() (App, tea.Cmd) {
+	if a, blocked := app.refuseDangerous("edit-config"); blocked {
+		return a, nil
+	}
 	f, err := os.CreateTemp("", "t9s-machconf-*.yaml")
 	if err != nil {
 		app.statusMsg = errStyle.Render("Cannot create temp file: " + err.Error())

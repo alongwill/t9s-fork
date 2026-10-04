@@ -93,6 +93,14 @@ func (app App) handleUpgradeKey(msg tea.KeyMsg) (App, tea.Cmd) {
 }
 
 func (app App) startUpgrade() (App, tea.Cmd) {
+	id := "upgrade-talos"
+	if app.upgradeForK8s {
+		id = "upgrade-k8s"
+	}
+	if a, blocked := app.refuseDangerous(id); blocked {
+		a.upgradeConfirm = false
+		return a, nil
+	}
 	app.upgradeConfirm = false
 	app.upgradeRunning = true
 	app.upgradeLines = nil

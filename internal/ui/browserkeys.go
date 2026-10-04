@@ -597,7 +597,7 @@ func (app App) openType(d talos.ResourceDef) (App, tea.Cmd) {
 		app.statusMsg = dimStyle.Render("still counting " + d.DisplayType + "…")
 		return app, nil
 	case n == countLocked:
-		app.statusMsg = warnStyle.Render("requires os:admin")
+		app.statusMsg = app.lockMessage()
 		return app, nil
 	case n == countError:
 		app.statusMsg = errStyle.Render("could not list " + d.DisplayType)

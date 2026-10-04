@@ -19,12 +19,16 @@ func main() {
 		talosCtx string
 		showVer  bool
 		source   string
+		readOnly bool
+		write    bool
 	)
 
 	flag.StringVar(&cfgPath, "talosconfig", "", "Path to talosconfig (default: $TALOSCONFIG or ~/.talos/config)")
 	flag.StringVar(&talosCtx, "context", "", "Talos context to use")
 	flag.StringVar(&source, "source", ui.SourceAuto, "Resource browser data source: auto (gRPC, falling back to the CLI), grpc, or cli")
 	flag.BoolVar(&showVer, "version", false, "Print version and exit")
+	flag.BoolVar(&readOnly, "readonly", true, "Read-only mode (default): keys that change a cluster are hidden and refused; --readonly=false is the same as --write")
+	flag.BoolVar(&write, "write", false, "Enable actions that change a cluster (reboot, shutdown, upgrades, machine config edit)")
 	flag.Parse()
 
 	if showVer {
@@ -47,7 +51,11 @@ func main() {
 		talosCtx = cfg.Context
 	}
 
-	app := ui.New(cfg, cfgPath, talosCtx).WithSourceMode(source)
+	flagSet := map[string]bool{}
+	flag.Visit(func(f *flag.Flag) { flagSet[f.Name] = true })
+	allowWrite := resolveWrite(readOnly, write, flagSet, os.Getenv("T9S_READONLY"))
+
+	app := ui.New(cfg, cfgPath, talosCtx).WithSourceMode(source).WithWrite(allowWrite)
 
 	p := tea.NewProgram(app,
 		tea.WithAltScreen(),

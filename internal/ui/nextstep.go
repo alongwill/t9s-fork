@@ -89,7 +89,7 @@ func (app App) typeNextStep(p pane) []string {
 	case !counted:
 		return []string{"counting…", what}
 	case n == countLocked:
-		return []string{"requires os:admin", what}
+		return []string{padlock() + " " + app.lockShort(), what}
 	case n == countError:
 		return []string{"could not list it · ctrl+r retries", what}
 	case n == 0:

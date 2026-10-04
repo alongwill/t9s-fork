@@ -89,7 +89,7 @@ func TestConfigPermissionDeniedShowsNoteAndKeepsResources(t *testing.T) {
 	app := cfgApp(120, 40, 3)
 	app.browser.docs, app.browser.cfgState = nil, cfgDenied
 	out := app.renderBrowser(app.mainHeight())
-	for _, want := range []string{"CONFIG", "requires os:admin", "RESOURCES", "Thing00"} {
+	for _, want := range []string{"CONFIG", padlock() + " needs os:admin", "RESOURCES", "Thing00"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in\n%s", want, out)
 		}

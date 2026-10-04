@@ -75,6 +75,7 @@ const (
 
 type browser struct {
 	node    talos.Node
+	lockWhy string // short reason shown next to a padlock; set by the renderer (see lockNote)
 	defs    []talos.ResourceDef
 	counts  map[string]int // type → instances; -1 locked, -2 error; missing = not loaded
 	singles map[string]talos.ResourceMeta
@@ -313,7 +314,7 @@ func (b browser) typeCell(d talos.ResourceDef) (text string, dim bool) {
 	case !ok:
 		return "?", false
 	case n == countLocked:
-		return "lock", true
+		return padlock(), true
 	case n == countError:
 		return "err", true
 	case n == 0:

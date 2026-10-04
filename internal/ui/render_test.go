@@ -567,7 +567,7 @@ func TestRenderBrowserGreyedRowIsDim(t *testing.T) {
 	if strings.Contains(find("Thing02"), dimRun+"Thing02") {
 		t.Errorf("populated Thing02 must not be dim: %q", find("Thing02"))
 	}
-	for name, marker := range map[string]string{"Thing01": " -", "Thing03": "lock"} {
+	for name, marker := range map[string]string{"Thing01": " -", "Thing03": padlock()} {
 		l := find(name)
 		if !strings.Contains(l, dimRun+name) || !strings.Contains(ansi.Strip(l), marker) {
 			t.Errorf("%s should be dim and show %q: %q", name, marker, l)
@@ -577,7 +577,7 @@ func TestRenderBrowserGreyedRowIsDim(t *testing.T) {
 		n    int
 		text string
 		dim  bool
-	}{{0, "-", true}, {countLocked, "lock", true}, {countError, "err", true}, {5, "5", false}} {
+	}{{0, "-", true}, {countLocked, padlock(), true}, {countError, "err", true}, {5, "5", false}} {
 		b := browser{counts: map[string]int{"T": c.n}}
 		if text, dim := b.typeCell(talos.ResourceDef{Type: "T"}); text != c.text || dim != c.dim {
 			t.Errorf("typeCell(%d) = %q,%v want %q,%v", c.n, text, dim, c.text, c.dim)

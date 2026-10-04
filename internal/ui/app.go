@@ -40,6 +40,7 @@ const (
 	StateCategories // resource browser, root pane only
 	StateBrowser    // resource browser, deeper panes
 	StateContainerDetail
+	StateSchematic // Image Factory schematic YAML
 )
 
 const (
@@ -111,6 +112,7 @@ type App struct {
 	machSection   string // extracted "machine:" section shown in UI
 	machVP        viewport.Model
 	machLoading   bool
+	machDenied    bool   // the read was refused: show the padlock panel
 	machEditFile  string // temp file path while editing
 	machEditMode  bool   // waiting for apply confirmation
 	machFindQuery string
@@ -220,6 +222,26 @@ type App struct {
 	dmesgCur  int
 	healthCur int
 
+	// writeMode is false by default: mutating actions are hidden and refused
+	// (--write turns it on, see WithWrite).
+	writeMode bool
+
+	// Schematic pane and the Extensions header line
+	schemVP      viewport.Model
+	schemInfo    talos.SchematicInfo
+	schemYAML    string
+	schemErr     string
+	schemLoading bool
+	schemSeq     uint64
+	schemOrigin  AppState
+	extSchem     talos.SchematicInfo
+	extSchemOK   bool
+
+	// id is who t9s talks to: Omni or plain Talos, and the current role.
+	id          identity
+	omniProbed  bool // the SideroLink check ran for this context
+	omniProbing bool // ... and is in flight
+
 	// Resource browser (a on the node list)
 	browser           browser
 	resourceDefs      map[string][]talos.ResourceDef // node IP → cached `get rd`
@@ -287,6 +309,7 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 		runContainerLogStream: client.StreamContainerLogs,
 		resSem:                make(chan struct{}, 8),
 		tipIdx:                -1,
+		id:                    newIdentity(cfg, talosCtx),
 	}
 }
 
@@ -464,7 +487,20 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				app.verMismatch = checkVersionMismatch(app.clientVer, app.serverVer)
 			}
 		}
-		return app, app.loadNodeDetails()
+		app, probeCmd := app.probeOmni()
+		return app, tea.Batch(app.loadNodeDetails(), probeCmd)
+
+	case schematicMsg:
+		return app.handleSchematic(msg), nil
+
+	case schematicInfoMsg:
+		if app.selNode != nil && app.selNode.IP == msg.node && app.state == StateExtensions {
+			app.extSchem, app.extSchemOK = msg.info, msg.ok
+		}
+		return app, nil
+
+	case omniProbeMsg:
+		return app.handleOmniProbe(msg), nil
 
 	case servicesLoadedMsg:
 		app.svcLoading = false
@@ -511,9 +547,13 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case machineConfigLoadedMsg:
 		app.machLoading = false
-		if msg.err != nil {
+		app.machDenied = msg.err != nil && talos.IsPermissionDenied(msg.err)
+		switch {
+		case app.machDenied:
+			app.statusMsg = app.lockMessage()
+		case msg.err != nil:
 			app.statusMsg = errStyle.Render("Error: " + msg.err.Error())
-		} else {
+		default:
 			app.machConf = msg.content
 			app.machSection = extractSpecContent(msg.content)
 			app.machVP.SetContent(colorYAMLText(app.machSection, ""))
@@ -821,25 +861,6 @@ func (app App) mainHeight() int {
 }
 
 func (app App) renderHeader() string {
-	ctx := app.talosCtx
-	if ctx == "" {
-		ctx = app.cfg.Context
-	}
-
-	// Left: logo + context
-	logo := lipgloss.NewStyle().
-		Background(colorBgHead).
-		Foreground(colorCyan).
-		Bold(true).
-		Render(" t9s ")
-	sep := headerSepStyle.Render("│")
-	ctxPart := headerStyle.Render(" ctx: " + ctx + " ")
-
-	left := logo + sep + ctxPart
-	if app.selNode != nil {
-		left += sep + headerStyle.Render(" "+app.selNode.Hostname+" ("+app.selNode.IP+") ")
-	}
-
 	// Right: current view name
 	right := lipgloss.NewStyle().
 		Background(colorBgHead).
@@ -847,9 +868,19 @@ func (app App) renderHeader() string {
 		Bold(true).
 		Render(" " + viewTitle(app.state) + " ")
 
+	// Left: logo, mode, platform, role, context, node. Parts drop out, least
+	// important first, until the bar fits.
+	rightW := lipgloss.Width(right)
+	var left string
+	for level := 0; level <= maxHeaderLevel; level++ {
+		left = app.headerLeft(level)
+		if lipgloss.Width(left)+rightW <= app.width {
+			break
+		}
+	}
+
 	// Fill the gap
 	leftW := lipgloss.Width(left)
-	rightW := lipgloss.Width(right)
 	gap := app.width - leftW - rightW
 	if gap < 0 {
 		gap = 0
@@ -943,6 +974,8 @@ func resourceLine(app App) string {
 		return fmt.Sprintf("Contexts (%d)", len(app.contexts))
 	case StateCategories, StateBrowser:
 		return app.browserHeaderLine()
+	case StateSchematic:
+		return "Schematic › " + shortID(app.schemInfo.ID)
 	}
 	return ""
 }
@@ -985,6 +1018,8 @@ func viewTitle(s AppState) string {
 		return "[ Upgrade K8s ]"
 	case StateContextSwitcher:
 		return "[ Contexts ]"
+	case StateSchematic:
+		return "[ Schematic ]"
 	case StateCategories, StateBrowser:
 		return "[ Resources ]"
 	}
@@ -1022,7 +1057,7 @@ func (app App) renderFooter() string {
 	if app.verMismatch != "" {
 		status = warnStyle.Render(app.verMismatch) + "  " + status
 	}
-	return sepLine + "\n  " + status
+	return sepLine + "\n  " + clipANSI(status, max(1, app.width-2))
 }
 
 func (app App) renderMain(height int) string {
@@ -1061,6 +1096,8 @@ func (app App) renderMain(height int) string {
 		return app.renderUpgrade(height)
 	case StateContextSwitcher:
 		return app.renderContextSwitcher(height)
+	case StateSchematic:
+		return app.renderSchematic(height)
 	case StateCategories, StateBrowser:
 		return app.renderBrowser(height)
 	}
