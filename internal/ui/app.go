@@ -218,6 +218,11 @@ type App struct {
 	// (--write turns it on, see WithWrite).
 	writeMode bool
 
+	// id is who t9s talks to: Omni or plain Talos, and the current role.
+	id          identity
+	omniProbed  bool // the SideroLink check ran for this context
+	omniProbing bool // ... and is in flight
+
 	// Resource browser (a on the node list)
 	browser           browser
 	resourceDefs      map[string][]talos.ResourceDef // node IP → cached `get rd`
@@ -285,6 +290,7 @@ func New(cfg *config.TalosConfig, cfgPath, talosCtx string) App {
 		runContainerLogStream: client.StreamContainerLogs,
 		resSem:                make(chan struct{}, 8),
 		tipIdx:                -1,
+		id:                    newIdentity(cfg, talosCtx),
 	}
 }
 
@@ -462,7 +468,11 @@ func (app App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				app.verMismatch = checkVersionMismatch(app.clientVer, app.serverVer)
 			}
 		}
-		return app, app.loadNodeDetails()
+		app, probeCmd := app.probeOmni()
+		return app, tea.Batch(app.loadNodeDetails(), probeCmd)
+
+	case omniProbeMsg:
+		return app.handleOmniProbe(msg), nil
 
 	case servicesLoadedMsg:
 		app.svcLoading = false
@@ -821,25 +831,6 @@ func (app App) mainHeight() int {
 }
 
 func (app App) renderHeader() string {
-	ctx := app.talosCtx
-	if ctx == "" {
-		ctx = app.cfg.Context
-	}
-
-	// Left: logo + context
-	logo := lipgloss.NewStyle().
-		Background(colorBgHead).
-		Foreground(colorCyan).
-		Bold(true).
-		Render(" t9s ")
-	sep := headerSepStyle.Render("│")
-	ctxPart := headerStyle.Render(" ctx: " + ctx + " ")
-
-	left := logo + sep + app.modeBadge() + sep + ctxPart
-	if app.selNode != nil {
-		left += sep + headerStyle.Render(" "+app.selNode.Hostname+" ("+app.selNode.IP+") ")
-	}
-
 	// Right: current view name
 	right := lipgloss.NewStyle().
 		Background(colorBgHead).
@@ -847,9 +838,19 @@ func (app App) renderHeader() string {
 		Bold(true).
 		Render(" " + viewTitle(app.state) + " ")
 
+	// Left: logo, mode, platform, role, context, node. Parts drop out, least
+	// important first, until the bar fits.
+	rightW := lipgloss.Width(right)
+	var left string
+	for level := 0; level <= maxHeaderLevel; level++ {
+		left = app.headerLeft(level)
+		if lipgloss.Width(left)+rightW <= app.width {
+			break
+		}
+	}
+
 	// Fill the gap
 	leftW := lipgloss.Width(left)
-	rightW := lipgloss.Width(right)
 	gap := app.width - leftW - rightW
 	if gap < 0 {
 		gap = 0

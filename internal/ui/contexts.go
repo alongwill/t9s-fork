@@ -34,6 +34,8 @@ func (app App) handleContextsKey(msg tea.KeyMsg) (App, tea.Cmd) {
 		newCtx := ctxs[app.ctxCur]
 		app.talosCtx = newCtx
 		app.client.Context = newCtx
+		app.id = newIdentity(app.cfg, newCtx)
+		app.omniProbed, app.omniProbing = false, false
 		// Reset all state
 		app.nodes = nil
 		app.selNode = nil
