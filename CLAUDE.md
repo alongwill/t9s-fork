@@ -90,7 +90,7 @@ gopkg.in/yaml.v3 v3.0.1
 
 ## Build & run
 ```bash
-rtk go build -o t9s ./cmd/main.go   # build
+rtk go build -o t9s ./cmd   # build
 ./t9s --talosconfig ~/.talos/config  # run
 rtk go test ./...                    # all tests
 ```

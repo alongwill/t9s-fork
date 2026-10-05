@@ -71,7 +71,7 @@ Requires **Go 1.22+**.
 ```bash
 git clone https://github.com/florianspk/t9s
 cd t9s
-go build -o t9s ./cmd/main.go
+go build -o t9s ./cmd
 sudo mv t9s /usr/local/bin/
 ```
 

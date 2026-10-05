@@ -7,7 +7,7 @@ before:
 
 builds:
   - id: t9s
-    main: ./cmd/main.go
+    main: ./cmd
     binary: t9s
     env:
       - CGO_ENABLED=0
